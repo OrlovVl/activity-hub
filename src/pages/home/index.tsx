@@ -32,11 +32,6 @@ export function HomePage() {
         }
     })
 
-    const { data: popularPostsData } = useQuery({
-        queryKey: ['posts', 'popular'],
-        queryFn: () => postsApi.getPosts({ limit: 4, sortBy: 'popularity' })
-    })
-
     const { data: categoriesData } = useQuery({
         queryKey: ['subcategories'],
         queryFn: () => categoriesApi.getSubcategories()
