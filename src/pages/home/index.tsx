@@ -8,14 +8,28 @@ import { usersApi } from '@/features/users/api'
 import { User } from '@/features/users/types'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/app/providers/auth-provider'
+import { useState } from 'react'
 
 export function HomePage() {
     const navigate = useNavigate()
     const { user } = useAuth()
+    const [activeTab, setActiveTab] = useState<string>('popular')
 
     const { data: postsData } = useQuery({
-        queryKey: ['posts', 'home'],
-        queryFn: () => postsApi.getPosts({ limit: 8, sortBy: 'date' })
+        queryKey: ['posts', 'home', activeTab],
+        queryFn: () => {
+            const params: any = { limit: 8 }
+            if (activeTab === 'popular') {
+                params.sortBy = 'popularity'
+            } else if (activeTab === 'new') {
+                params.sortBy = 'date'
+            } else if (activeTab === 'subscriptions' && user) {
+                params.followedByUserId = user.id
+            } else if (activeTab.startsWith('#')) {
+                params.tag = activeTab.slice(1)
+            }
+            return postsApi.getPosts(params)
+        }
     })
 
     const { data: popularPostsData } = useQuery({
@@ -32,29 +46,28 @@ export function HomePage() {
         queryKey: ['users', 'home'],
         queryFn: () => usersApi.getUsers({ limit: 20 })
     })
+const posts = postsData?.posts || []
+const subcategories = categoriesData || []
+const users = usersData?.users || []
 
-    const posts = postsData?.posts || []
-    const popularPosts = popularPostsData?.posts || []
-    const subcategories = categoriesData || []
-    const users = usersData?.users || []
+const getAuthor = (authorId: number) => {
+    return users.find((author: User) => author.id === authorId)
+}
 
-    const getAuthor = (authorId: number) => {
-        return users.find((author: User) => author.id === authorId)
+const getSubcategory = (subcategoryId: number) => {
+    const subcategory = subcategories.find(s => s.id === subcategoryId)
+    if (!subcategory) return null
+
+    const mainCategory = subcategory.mainCategoryId
+    const color = getCategoryColor(mainCategory)
+
+    return {
+        id: subcategory.id,
+        name: subcategory.name,
+        color,
     }
+}
 
-    const getSubcategory = (subcategoryId: number) => {
-        const subcategory = subcategories.find(s => s.id === subcategoryId)
-        if (!subcategory) return null
-
-        const mainCategory = subcategory.mainCategoryId
-        const color = getCategoryColor(mainCategory)
-
-        return {
-            id: subcategory.id,
-            name: subcategory.name,
-            color,
-        }
-    }
 
     const getCategoryColor = (categoryId: number) => {
         const colors = [
@@ -103,66 +116,52 @@ export function HomePage() {
             {/* Filters */}
             <div className="flex items-center justify-between">
                 <div className="flex space-x-2 overflow-x-auto pb-2">
-                    <Button variant="primary" size="sm">
+                    <Button
+                        variant={activeTab === 'popular' ? 'primary' : 'outline'}
+                        size="sm"
+                        onClick={() => setActiveTab('popular')}
+                    >
                         <FaFire className="mr-2" />
                         Популярное
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button
+                        variant={activeTab === 'new' ? 'primary' : 'outline'}
+                        size="sm"
+                        onClick={() => setActiveTab('new')}
+                    >
                         <FaClock className="mr-2" />
                         Новое
                     </Button>
                     {user && (
-                        <Button variant="outline" size="sm">
+                        <Button
+                            variant={activeTab === 'subscriptions' ? 'primary' : 'outline'}
+                            size="sm"
+                            onClick={() => setActiveTab('subscriptions')}
+                        >
                             <FaStar className="mr-2" />
                             Подписки
                         </Button>
                     )}
                     {['#мото', '#дайвинг', '#путешествия', '#горы'].map(tag => (
-                        <Button key={tag} variant="outline" size="sm">
+                        <Button
+                            key={tag}
+                            variant={activeTab === tag ? 'primary' : 'outline'}
+                            size="sm"
+                            onClick={() => setActiveTab(tag)}
+                        >
                             {tag}
                         </Button>
                     ))}
                 </div>
             </div>
 
-            {/* Popular Posts */}
-            {popularPosts.length > 0 && (
-                <div>
-                    <h2 className="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-4 flex items-center">
-                        <FaFire className="mr-2 text-amber-500" />
-                        Популярные посты
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {popularPosts.slice(0, 4).map(post => {
-                            const author = getAuthor(post.authorId)
-                            const subcategory = getSubcategory(post.subcategoryId)
-
-                            if (!author || !subcategory) return null
-
-                            return (
-                                <div key={post.id} className="h-full">
-                                    <PostCard
-                                        post={post}
-                                        author={{
-                                            id: author.id,
-                                            username: author.username,
-                                            avatar: author.avatar
-                                        }}
-                                        subcategory={subcategory}
-                                        onCommentClick={() => navigate(`/posts/${post.id}`)}
-                                        onShareClick={() => console.log('Share clicked')}
-                                    />
-                                </div>
-                            )
-                        })}
-                    </div>
-                </div>
-            )}
-
             {/* Recent Posts */}
             <div>
                 <h2 className="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-4">
-                    Последние публикации
+                    {activeTab === 'popular' ? 'Все популярные публикации' :
+                        activeTab === 'new' ? 'Последние публикации' :
+                            activeTab === 'subscriptions' ? 'Ваши подписки' :
+                                `Публикации с тегом ${activeTab}`}
                 </h2>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {posts.map(post => {
@@ -186,6 +185,14 @@ export function HomePage() {
                             />
                         )
                     })}
+                    {posts.length === 0 && (
+                        <div className="col-span-full text-center text-stone-500 dark:text-stone-400 py-8">
+                            {activeTab === 'popular' ? 'Пока нет популярных публикаций.' :
+                             activeTab === 'new' ? 'Нет последних публикаций.' :
+                             activeTab === 'subscriptions' ? 'Вы еще ни на кого не подписаны, или у ваших подписок нет публикаций.' :
+                             `Нет публикаций с тегом ${activeTab.slice(1)}.`}
+                        </div>
+                    )}
                 </div>
             </div>
 

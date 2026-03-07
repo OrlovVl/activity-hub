@@ -294,6 +294,7 @@ export const handlers = [
         const sortBy = url.searchParams.get('sortBy') || 'date'
         const dateFrom = url.searchParams.get('dateFrom')
         const dateTo = url.searchParams.get('dateTo')
+        const followedByUserId = url.searchParams.get('followedByUserId')
 
         let filteredPosts = [...data.posts]
 
@@ -303,6 +304,13 @@ export const handlers = [
 
         if (userId) {
             filteredPosts = filteredPosts.filter(p => p.authorId === parseInt(userId))
+        }
+
+        if (followedByUserId) {
+            const followingIds = data.subscriptions
+                .filter(s => s.followerId === parseInt(followedByUserId))
+                .map(s => s.followingId)
+            filteredPosts = filteredPosts.filter(p => followingIds.includes(p.authorId))
         }
 
         if (tag) {

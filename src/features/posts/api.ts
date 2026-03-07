@@ -12,6 +12,7 @@ export const postsApi = {
         sortBy?: 'date' | 'popularity'
         dateFrom?: string
         dateTo?: string
+        followedByUserId?: number
     }): Promise<{ posts: Post[]; total: number }> => {
         const query = new URLSearchParams()
         if (params?.subcategoryId) query.set('subcategoryId', params.subcategoryId.toString())
@@ -23,6 +24,7 @@ export const postsApi = {
         if (params?.sortBy) query.set('sortBy', params.sortBy)
         if (params?.dateFrom) query.set('dateFrom', params.dateFrom)
         if (params?.dateTo) query.set('dateTo', params.dateTo)
+        if (params?.followedByUserId) query.set('followedByUserId', params.followedByUserId.toString())
 
         return apiClient.get<{ posts: Post[]; total: number }>(`/posts?${query}`)
     },
