@@ -20,9 +20,14 @@ export interface GraphQLPost {
     id: number
     title: string
     content: string
-    createdAt: string
+    authorId: number
+    subcategoryId: number
+    tags: string[]
     likesCount: number
-    author: GraphQLUser
+    commentsCount: number
+    createdAt: string
+    updatedAt: string
+    author?: GraphQLUser
 }
 
 export interface GraphQLCategory {
@@ -41,38 +46,36 @@ export interface HomePageData {
 // GraphQL queries
 const GET_HOME_PAGE_QUERY = `
     query getHomePage {
-        getHomePage {
-            categories {
-                id
-                name
-                description
-                icon
+        categories {
+            id
+            name
+            description
+            icon
+        }
+        me {
+            id
+            username
+            email
+            role
+            createdAt
+            favoriteSubcategoryIds
+            stats {
+                postsCount
+                followersCount
+                followingCount
+                likesCount
             }
-            me {
+        }
+        trendingPosts {
+            id
+            title
+            content
+            createdAt
+            likesCount
+            author {
                 id
                 username
                 email
-                role
-                createdAt
-                favoriteSubcategoryIds
-                stats {
-                    postsCount
-                    followersCount
-                    followingCount
-                    likesCount
-                }
-            }
-            trendingPosts {
-                id
-                title
-                content
-                createdAt
-                likesCount
-                author {
-                    id
-                    username
-                    email
-                }
             }
         }
     }

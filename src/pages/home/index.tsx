@@ -2,6 +2,7 @@ import { PostCard } from '@features/posts/components/post-card'
 import { Button } from '@/shared/ui/button'
 import { FaPlus, FaFire, FaClock, FaStar, FaCompass } from 'react-icons/fa'
 import { useQuery } from '@tanstack/react-query'
+import { homeGraphQL } from '@features/home/graphql'
 import { postsApi } from '@features/posts/api'
 import { categoriesApi } from '@features/categories/api'
 import { usersApi } from '@/features/users/api'
@@ -15,11 +16,17 @@ export function HomePage() {
     const { user } = useAuth()
     const [activeTab, setActiveTab] = useState<string>('popular')
 
-    const { isLoading: homeLoading } = useQuery({
+    // Главная страница загружается через GraphQL
+    const { data: homeData, isLoading: homeLoading } = useQuery({
         queryKey: ['home'],
-        queryFn: () => postsApi.getPosts({ limit: 8 })
+        queryFn: homeGraphQL.getHomePage
     })
 
+    const categories = homeData?.categories || []
+    const me = homeData?.me || null
+    const trendingPosts = homeData?.trendingPosts || []
+
+    // Остальные запросы остаются как были
     const { data: postsData } = useQuery({
         queryKey: ['posts', 'home', activeTab],
         queryFn: () => {
@@ -46,14 +53,14 @@ export function HomePage() {
         queryKey: ['users', 'home'],
         queryFn: () => usersApi.getUsers({ limit: 20 })
     })
-    
+
     const isLoading = homeLoading || categoriesLoading || usersLoading
     const posts = postsData?.posts || []
     const subcategories = categoriesData || []
     const users = (usersData?.users || []) || []
 
     const getAuthor = (authorId: number) => {
-        return users.find((author: User) => author.id === authorId)
+        return users.find((u: User) => u.id === authorId)
     }
 
     const getSubcategory = (subcategoryId: number) => {
@@ -201,19 +208,19 @@ export function HomePage() {
                             Активные пользователи
                         </h2>
                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-                            {users.slice(0, 8).map((user: User) => (
+                            {users.slice(0, 8).map((u: User) => (
                                 <div
-                                    key={user.id}
+                                    key={u.id}
                                     className="bg-white dark:bg-stone-800 rounded-xl p-4 text-center hover:shadow-lg transition-shadow cursor-pointer"
-                                    onClick={() => navigate(`/profile?id=${user.id}`)}
+                                    onClick={() => navigate(`/profile?id=${u.id}`)}
                                 >
                                     <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-2">
                                         <span className="text-amber-800 dark:text-amber-200 font-semibold">
-                                            {user.username.slice(0, 2).toUpperCase()}
+                                            {u.username.slice(0, 2).toUpperCase()}
                                         </span>
                                     </div>
                                     <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm truncate">
-                                        {user.username}
+                                        {u.username}
                                     </h3>
                                     <p className="text-xs text-stone-600 dark:text-stone-400 mt-1">
                                         Активный пользователь
