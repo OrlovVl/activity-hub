@@ -4,10 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Input } from '@/shared/ui/input'
 import { Button } from '@/shared/ui/button'
-import { FaPlus, FaTimes, FaUpload, FaMapMarkerAlt } from 'react-icons/fa'
+import { FaPlus, FaTimes } from 'react-icons/fa'
 import { cn } from '@/shared/utils/helpers'
 import { Subcategory } from '@features/categories/types'
-import { MapRoute } from '@/features/posts/types'
 
 const postSchema = z.object({
     title: z.string()
@@ -20,16 +19,6 @@ const postSchema = z.object({
     tags: z.array(z.string())
         .min(1, 'Добавьте хотя бы один тег')
         .max(10, 'Максимум 10 тегов'),
-    location: z.object({
-        lat: z.number().optional(),
-        lng: z.number().optional(),
-        name: z.string().optional(),
-    }).optional(),
-    media: z.object({
-        photos: z.array(z.string()).max(10, 'Максимум 10 фотографий'),
-        route: z.custom<MapRoute>().optional(),
-        spotifyPlaylist: z.string().optional(),
-    }).optional(),
 })
 
 type PostFormData = z.infer<typeof postSchema>
@@ -49,7 +38,6 @@ export function PostEditor({
     initialData,
     isSubmitting = false
 }: PostEditorProps) {
-    const [photos, setPhotos] = useState<string[]>(initialData?.media?.photos || [])
     const [tagInput, setTagInput] = useState('')
     const [tags, setTags] = useState<string[]>(initialData?.tags || [])
     const [availableTags, setAvailableTags] = useState<string[]>([])
@@ -67,12 +55,6 @@ export function PostEditor({
             content: initialData?.content || '',
             subcategoryId: initialData?.subcategoryId || undefined,
             tags: initialData?.tags || [],
-            location: initialData?.location || undefined,
-            media: {
-                photos: initialData?.media?.photos || [],
-                route: initialData?.media?.route,
-                spotifyPlaylist: initialData?.media?.spotifyPlaylist,
-            },
         },
     })
 
@@ -87,47 +69,6 @@ export function PostEditor({
             }
         }
     })
-
-    const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files
-        if (files) {
-            // В реальном приложении здесь был бы загрузка на сервер
-            // Для моков используем Data URLs
-            const newPhotos: string[] = []
-            const fileReaders: FileReader[] = []
-
-            Array.from(files).forEach((file) => {
-                if (photos.length + newPhotos.length >= 10) {
-                    alert('Максимум 10 фотографий')
-                    return
-                }
-
-                const reader = new FileReader()
-                fileReaders.push(reader)
-
-                reader.onload = (event) => {
-                    if (event.target?.result) {
-                        newPhotos.push(event.target.result as string)
-
-                        // Когда все файлы прочитаны
-                        if (newPhotos.length === Math.min(files.length, 10 - photos.length)) {
-                            const updatedPhotos = [...photos, ...newPhotos]
-                            setPhotos(updatedPhotos)
-                            setValue('media.photos', updatedPhotos)
-                        }
-                    }
-                }
-
-                reader.readAsDataURL(file)
-            })
-        }
-    }
-
-    const removePhoto = (index: number) => {
-        const newPhotos = photos.filter((_, i) => i !== index)
-        setPhotos(newPhotos)
-        setValue('media.photos', newPhotos)
-    }
 
     const addTag = () => {
         const trimmed = tagInput.trim().toLowerCase()
@@ -310,83 +251,6 @@ export function PostEditor({
                 {errors.tags && (
                     <p className="text-sm text-red-600 dark:text-red-400">{errors.tags.message}</p>
                 )}
-            </div>
-
-            {/* Photos */}
-            <div className="space-y-2">
-                <label className="block text-sm font-medium text-stone-700 dark:text-stone-300">
-                    Фотографии ({photos.length}/10)
-                </label>
-                <div
-                    className={cn(
-                        'border-2 border-dashed rounded-lg p-6 text-center transition-colors',
-                        'border-stone-300 dark:border-stone-700 hover:border-amber-400 cursor-pointer',
-                        isSubmitting && 'opacity-50 cursor-not-allowed'
-                    )}
-                >
-                    <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        onChange={handlePhotoUpload}
-                        className="hidden"
-                        id="photo-upload"
-                        disabled={isSubmitting || photos.length >= 10}
-                    />
-                    <label
-                        htmlFor="photo-upload"
-                        className={cn(
-                            "cursor-pointer block",
-                            (isSubmitting || photos.length >= 10) && "cursor-not-allowed"
-                        )}
-                    >
-                        <FaUpload className="w-8 h-8 mx-auto mb-2 text-stone-400" />
-                        <p className="text-stone-600 dark:text-stone-400">
-                            Кликните для выбора фотографий
-                        </p>
-                        <p className="text-sm text-stone-500 dark:text-stone-500 mt-1">
-                            Максимум 10 файлов (JPEG, PNG, GIF, WebP)
-                        </p>
-                    </label>
-                </div>
-
-                {/* Photo previews */}
-                {photos.length > 0 && (
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-4">
-                        {photos.map((photo, index) => (
-                            <div key={index} className="relative aspect-square group">
-                                <img
-                                    src={photo}
-                                    alt={`Preview ${index + 1}`}
-                                    className="w-full h-full object-cover rounded-lg"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => removePhoto(index)}
-                                    className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    disabled={isSubmitting}
-                                >
-                                    <FaTimes className="w-3 h-3" />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-
-            {/* Location */}
-            <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                    <FaMapMarkerAlt className="w-4 h-4 text-stone-500" />
-                    <label className="text-sm font-medium text-stone-700 dark:text-stone-300">
-                        Локация (опционально)
-                    </label>
-                </div>
-                <Input
-                    placeholder="Введите название места..."
-                    {...register('location.name')}
-                    disabled={isSubmitting}
-                />
             </div>
 
             {/* Buttons */}

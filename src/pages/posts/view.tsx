@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { FaHeart, FaRegHeart, FaComment, FaShare, FaBookmark, FaRegBookmark, FaMapMarkerAlt, FaCalendar, FaUser } from 'react-icons/fa'
+import { useParams, useNavigate } from 'react-router-dom'
+import { FaHeart, FaRegHeart, FaComment, FaShare, FaCalendar, FaUser } from 'react-icons/fa'
 import { Avatar } from '@/shared/ui/avatar'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent } from '@/shared/ui/card'
@@ -11,12 +11,17 @@ import { postsApi } from '@features/posts/api'
 import { commentsApi } from '@features/comments/api'
 import { usersApi } from '@/features/users/api'
 import { Skeleton } from '@/shared/ui/skeleton'
+import { useAuth } from '@/app/providers/auth-provider'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { postsApi as likeApi } from '@features/posts/api'
 
 export function ViewPostPage() {
     const { id } = useParams<{ id: string }>()
+    const navigate = useNavigate()
+    const { user } = useAuth()
+    const queryClient = useQueryClient()
     const postId = Number(id)
     const [liked, setLiked] = useState(false)
-    const [bookmarked, setBookmarked] = useState(false)
 
     const { data: post, isLoading: postLoading } = useQuery({
         queryKey: ['post', postId],
@@ -35,6 +40,23 @@ export function ViewPostPage() {
         queryFn: () => commentsApi.getPostComments(postId),
         enabled: !!postId
     })
+
+    const likeMutation = useMutation({
+        mutationFn: () => liked ? likeApi.unlikePost(post!.id) : likeApi.likePost(post!.id),
+        onSuccess: () => {
+            setLiked(!liked)
+            queryClient.invalidateQueries({ queryKey: ['post', postId] })
+        },
+    })
+
+    const handleLike = () => {
+        if (!user || !post) return
+        likeMutation.mutate()
+    }
+
+    const handleEdit = () => {
+        if (post) navigate(`/posts/${post.id}/edit`)
+    }
 
     if (postLoading) {
         return (
@@ -55,8 +77,8 @@ export function ViewPostPage() {
                 <p className="text-stone-600 dark:text-stone-400 mb-6">
                     Запрошенный пост не существует или был удален
                 </p>
-                <Button onClick={() => window.history.back()}>
-                    Вернуться назад
+                <Button onClick={() => navigate('/')}>
+                    Вернуться на главную
                 </Button>
             </div>
         )
@@ -67,7 +89,7 @@ export function ViewPostPage() {
             {/* Post Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                    <Button variant="outline" onClick={() => window.history.back()}>
+                    <Button variant="outline" onClick={() => navigate('/')}>
                         ← Назад
                     </Button>
                     <div className="hidden md:block">
@@ -78,8 +100,9 @@ export function ViewPostPage() {
                 </div>
                 <div className="flex items-center space-x-2">
                     <button
-                        onClick={() => setLiked(!liked)}
-                        className="flex items-center space-x-2 px-4 py-2 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
+                        onClick={handleLike}
+                        disabled={likeMutation.isPending || !user}
+                        className="flex items-center space-x-2 px-4 py-2 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors disabled:opacity-50"
                     >
                         {liked ? (
                             <FaHeart className="w-5 h-5 text-red-500" />
@@ -90,20 +113,15 @@ export function ViewPostPage() {
                             {post.likesCount + (liked ? 1 : 0)}
                         </span>
                     </button>
-                    <button
-                        onClick={() => setBookmarked(!bookmarked)}
-                        className="p-2 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
-                    >
-                        {bookmarked ? (
-                            <FaBookmark className="w-5 h-5 text-amber-500" />
-                        ) : (
-                            <FaRegBookmark className="w-5 h-5 text-stone-500" />
-                        )}
-                    </button>
-                    <Button>
+                    <Button onClick={() => navigate('/posts/create')}>
                         <FaShare className="mr-2" />
                         Поделиться
                     </Button>
+                    {user?.id === post.authorId && (
+                        <Button variant="outline" size="sm" onClick={handleEdit}>
+                            Редактировать
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -121,7 +139,7 @@ export function ViewPostPage() {
                         {authorLoading ? (
                             <Skeleton className="w-16 h-16 rounded-full" />
                         ) : (
-                            <Avatar size="lg" src={author?.avatar} fallback={author?.username || 'U'} />
+                            <Avatar size="lg" fallback={(author?.username || 'U').slice(0, 2).toUpperCase()} />
                         )}
                         <div className="flex-1">
                             <div className="flex items-center justify-between">
@@ -137,14 +155,16 @@ export function ViewPostPage() {
                                         {authorLoading ? (
                                             <Skeleton className="h-4 w-48 mt-2" />
                                         ) : (
-                                            author?.bio || 'Расскажите о себе...'
+                                            'Участник платформы'
                                         )}
                                     </p>
                                 </div>
-                                <Button variant="outline" size="sm">
-                                    <FaUser className="mr-2" />
-                                    Подписаться
-                                </Button>
+                                {user?.id !== post.authorId && (
+                                    <Button variant="outline" size="sm">
+                                        <FaUser className="mr-2" />
+                                        Подписаться
+                                    </Button>
+                                )}
                             </div>
                             <div className="flex items-center space-x-4 mt-4 text-sm text-stone-500 dark:text-stone-500">
                                 <span className="flex items-center">
@@ -183,50 +203,6 @@ export function ViewPostPage() {
                     </div>
                 </CardContent>
             </Card>
-
-            {/* Photos */}
-            {post.media.photos.length > 0 && (
-                <Card>
-                    <CardContent className="p-6">
-                        <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-4">
-                            Фотографии ({post.media.photos.length})
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {post.media.photos.map((photo, index) => (
-                                <div key={index} className="aspect-square overflow-hidden rounded-lg">
-                                    <img
-                                        src={photo}
-                                        alt={`Photo ${index + 1}`}
-                                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-
-            {/* Location */}
-            {post.location && (
-                <Card>
-                    <CardContent className="p-6">
-                        <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-4 flex items-center">
-                            <FaMapMarkerAlt className="w-5 h-5 mr-2 text-red-500" />
-                            Местоположение
-                        </h3>
-                        <div className="p-4 bg-stone-50 dark:bg-stone-800/50 rounded-lg">
-                            <p className="text-stone-700 dark:text-stone-300">
-                                {post.location.name}
-                            </p>
-                        </div>
-                        <div className="h-64 mt-4 bg-stone-200 dark:bg-stone-700 rounded-lg flex items-center justify-center">
-                            <p className="text-stone-500 dark:text-stone-400">
-                                Карта будет отображаться здесь
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
 
             {/* Comments */}
             <Card>

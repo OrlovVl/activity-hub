@@ -12,7 +12,6 @@ import { usersApi } from '@/features/users/api'
 import { searchApi } from '@/features/search/api'
 import { User } from '@/features/users/types'
 import { Post } from '@/features/posts/types'
-import mockData from '@/mocks/data'
 
 export function SearchPage() {
     const [searchQuery, setSearchQuery] = useState('')
@@ -21,7 +20,7 @@ export function SearchPage() {
     const [dateRange, setDateRange] = useState({ from: '', to: '' })
     const [sortBy, setSortBy] = useState<'relevance' | 'date' | 'popularity'>('relevance')
 
-    const { data: searchResults, refetch: search, isFetching } = useQuery({
+    const { refetch: search, isFetching } = useQuery({
         queryKey: ['search', searchQuery],
         queryFn: () => searchApi.search(searchQuery),
         enabled: false
@@ -66,11 +65,11 @@ export function SearchPage() {
         setSortBy('relevance')
     }
 
-    const posts = searchResults?.posts || postsData?.posts || []
-    const users = searchResults?.users || usersData?.users || []
+    const posts = postsData?.posts || []
+    const users = usersData?.users || []
     const subcategories = subcategoriesData || []
-    const searchHistory = mockData.searchHistory
-    const popularTags = mockData.popularTags
+    const searchHistory: string[] = []
+    const popularTags: { tag: string, count: number }[] = []
 
     return (
         <div className="space-y-6">
@@ -233,7 +232,6 @@ export function SearchPage() {
                                     author={{
                                         id: author.id,
                                         username: author.username,
-                                        avatar: author.avatar
                                     }}
                                     subcategory={{
                                         id: subcategory.id,
@@ -306,7 +304,7 @@ export function SearchPage() {
                             <div className="space-y-4">
                                 {users.slice(0, 3).map((user: User) => (
                                     <div key={user.id} className="flex items-center space-x-3">
-                                        <Avatar size="sm" src={user.avatar} fallback={user.username} />
+                                        <Avatar size="sm" fallback={(user.username || 'U').slice(0, 2).toUpperCase()} />
                                         <div className="flex-1">
                                             <p className="font-medium text-stone-900 dark:text-stone-100">
                                                 {user.username}

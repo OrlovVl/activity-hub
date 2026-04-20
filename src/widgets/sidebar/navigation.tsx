@@ -124,40 +124,6 @@ export function Navigation({ isCollapsed, onItemClick }: NavigationProps) {
                     </nav>
                 </div>
             )}
-
-            {/* Категории (только в развернутом виде) */}
-            {!isCollapsed && (
-                <div>
-                    <h3 className="px-3 mb-2 text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider">
-                        Популярное
-                    </h3>
-                    <nav className="space-y-1">
-                        {[
-                            { name: 'Мототуры', count: '1.2K', tag: 'мото' },
-                            { name: 'Дайвинг', count: '845', tag: 'дайвинг' },
-                            { name: 'Велоспорт', count: '723', tag: 'вело' },
-                            { name: 'Альпинизм', count: '512', tag: 'альпинизм' },
-                        ].map((category) => (
-                            <Link
-                                key={category.name}
-                                to={`/categories?tag=${category.tag}`}
-                                onClick={handleClick}
-                                className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
-                            >
-                                <div className="flex items-center space-x-3">
-                                    <div className={`w-2 h-2 rounded-full bg-amber-500`} />
-                                    <span className="text-sm text-stone-700 dark:text-stone-300">
-                                        {category.name}
-                                    </span>
-                                </div>
-                                <span className="text-xs text-stone-500 dark:text-stone-500">
-                                    {category.count}
-                                </span>
-                            </Link>
-                        ))}
-                    </nav>
-                </div>
-            )}
         </div>
     )
 }

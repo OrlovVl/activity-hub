@@ -1,5 +1,5 @@
 import React from 'react'
-import { FaHeart, FaRegHeart, FaComment, FaShare, FaBookmark, FaRegBookmark } from 'react-icons/fa'
+import { FaHeart, FaRegHeart, FaComment, FaShare } from 'react-icons/fa'
 import { Avatar } from '@/shared/ui/avatar'
 import { Button } from '@/shared/ui/button'
 import { Post } from '../types'
@@ -13,7 +13,7 @@ interface PostCardProps {
     author: {
         id: number
         username: string
-        avatar: string
+        avatar?: string
     }
     subcategory: {
         id: number
@@ -34,7 +34,6 @@ export function PostCard({
     const { user } = useAuth()
     const queryClient = useQueryClient()
     const [liked, setLiked] = React.useState(false)
-    const [bookmarked, setBookmarked] = React.useState(false)
 
     const likeMutation = useMutation({
         mutationFn: () => liked ? postsApi.unlikePost(post.id) : postsApi.likePost(post.id),
@@ -55,7 +54,7 @@ export function PostCard({
             <div className="p-4 border-b border-stone-200 dark:border-stone-700">
                 <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-3">
-                        <Avatar src={author.avatar} alt={author.username} fallback={author.username} />
+                        <Avatar size="md" fallback={author.username.slice(0, 2).toUpperCase()} />
                         <div>
                             <div className="flex items-center space-x-2">
                                 <h3 className="font-semibold text-stone-900 dark:text-stone-100">
@@ -72,9 +71,13 @@ export function PostCard({
                         </div>
                     </div>
 
-                    {user?.id === author.id && (
+                    {user?.id === post.authorId && (
                         <div className="flex items-center space-x-2">
-                            <Button variant="ghost" size="sm">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.location.href = `/posts/${post.id}/edit`}
+                            >
                                 Редактировать
                             </Button>
                         </div>
@@ -103,43 +106,6 @@ export function PostCard({
                                 #{tag}
                             </span>
                         ))}
-                    </div>
-                )}
-
-                {/* Photos */}
-                {post.media.photos.length > 0 && (
-                    <div className="mb-4">
-                        <div className={`grid gap-2 ${post.media.photos.length === 1 ? 'grid-cols-1' :
-                                post.media.photos.length === 2 ? 'grid-cols-2' :
-                                    'grid-cols-2 md:grid-cols-3'
-                            }`}>
-                            {post.media.photos.slice(0, 3).map((photo, index) => (
-                                <div key={index} className="relative aspect-square overflow-hidden rounded-lg">
-                                    <img
-                                        src={photo}
-                                        alt={`Photo ${index + 1}`}
-                                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
-                                    />
-                                    {index === 2 && post.media.photos.length > 3 && (
-                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                            <span className="text-white font-semibold">
-                                                +{post.media.photos.length - 3}
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Location */}
-                {post.location && (
-                    <div className="mb-4 p-3 bg-stone-50 dark:bg-stone-800/30 rounded-lg">
-                        <p className="text-sm text-stone-600 dark:text-stone-400 flex items-center">
-                            <span className="mr-2">📍</span>
-                            {post.location.name}
-                        </p>
                     </div>
                 )}
             </div>
@@ -177,17 +143,6 @@ export function PostCard({
                             <span>Поделиться</span>
                         </button>
                     </div>
-
-                    <button
-                        onClick={() => setBookmarked(!bookmarked)}
-                        className="text-stone-600 dark:text-stone-400 hover:text-amber-500 transition-colors"
-                    >
-                        {bookmarked ? (
-                            <FaBookmark className="w-5 h-5 text-amber-500" />
-                        ) : (
-                            <FaRegBookmark className="w-5 h-5" />
-                        )}
-                    </button>
                 </div>
             </div>
         </div>

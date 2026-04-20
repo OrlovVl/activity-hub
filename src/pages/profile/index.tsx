@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FaEdit, FaCamera, FaMapMarkerAlt, FaCalendar, FaChartLine } from 'react-icons/fa'
+import { FaEdit, FaMapMarkerAlt, FaCalendar, FaChartLine } from 'react-icons/fa'
 import { Avatar } from '@/shared/ui/avatar'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
@@ -9,13 +9,12 @@ import { useAuth } from '@/app/providers/auth-provider'
 export function ProfilePage() {
     const { user, updateUser } = useAuth()
     const [isEditing, setIsEditing] = useState(false)
-    const [bio, setBio] = useState(user?.bio || '')
     const [username, setUsername] = useState(user?.username || '')
 
     if (!user) return null
 
     const handleSave = () => {
-        updateUser({ bio, username })
+        updateUser({ username })
         setIsEditing(false)
     }
 
@@ -34,10 +33,7 @@ export function ProfilePage() {
                     <div className="flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-6">
                         {/* Avatar */}
                         <div className="relative">
-                            <Avatar src={user.avatar} size="xl" fallback={user.username} />
-                            <button className="absolute bottom-2 right-2 p-2 bg-white dark:bg-stone-800 rounded-full shadow-lg hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors">
-                                <FaCamera className="w-4 h-4 text-stone-600 dark:text-stone-400" />
-                            </button>
+                            <Avatar size="xl" fallback={(user.username || 'U').slice(0, 2).toUpperCase()} />
                         </div>
 
                         {/* Profile Info */}
@@ -48,13 +44,6 @@ export function ProfilePage() {
                                         value={username}
                                         onChange={(e) => setUsername(e.target.value)}
                                         placeholder="Имя пользователя"
-                                    />
-                                    <textarea
-                                        value={bio}
-                                        onChange={(e) => setBio(e.target.value)}
-                                        placeholder="Расскажите о себе..."
-                                        className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 text-stone-900 dark:text-stone-100"
-                                        rows={3}
                                     />
                                     <div className="flex space-x-2">
                                         <Button onClick={handleSave}>Сохранить</Button>
@@ -77,7 +66,7 @@ export function ProfilePage() {
                                         </button>
                                     </div>
                                     <p className="text-stone-600 dark:text-stone-400 mb-4">
-                                        {user.bio || 'Расскажите о себе...'}
+                                        Участник платформы
                                     </p>
                                     <div className="flex flex-wrap gap-2 text-sm text-stone-500 dark:text-stone-500">
                                         <span className="flex items-center">
@@ -86,7 +75,7 @@ export function ProfilePage() {
                                         </span>
                                         <span className="flex items-center">
                                             <FaCalendar className="w-3 h-3 mr-1" />
-                                            На платформе с {new Date(user.createdAt).getFullYear()}
+                                            На платформе с {new Date(user.id * 1000000).getFullYear()}
                                         </span>
                                     </div>
                                 </>

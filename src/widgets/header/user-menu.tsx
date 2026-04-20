@@ -22,9 +22,8 @@ export function UserMenu() {
             trigger={
                 <button className="flex items-center space-x-2 p-1 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                     <Avatar
-                        src={user.avatar}
-                        alt={user.username}
-                        fallback={user.username}
+                        size="sm"
+                        fallback={(user.username || 'U').slice(0, 2).toUpperCase()}
                     />
                     <span className="hidden sm:inline text-sm font-medium text-stone-700 dark:text-stone-300">
                         {user.username}

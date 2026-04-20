@@ -3,7 +3,6 @@ import { useUIStore } from '@/app/store/ui-store'
 import { cn } from '@/shared/utils/helpers'
 import { Button } from '@/shared/ui/button'
 import { Navigation } from '@widgets/sidebar/navigation'
-import { QuickAccess } from '@widgets/sidebar/quick-access'
 import { useRef } from 'react'
 import { useClickOutside } from '@/shared/hooks/use-click-outside'
 import { Link } from 'react-router-dom'
@@ -55,13 +54,10 @@ export function Sidebar() {
                 />
             </div>
 
-            {/* Quick Access */}
-            <QuickAccess
-                isCollapsed={!sidebarOpen}
-                onEdit={() => console.log('Edit quick access')}
-                onAdd={() => console.log('Add to quick access')}
-                onRemove={(id) => console.log('Remove from quick access:', id)}
-            />
+            {/* Быстрый доступ удалён */}
+            <div className="hidden">
+                {/* Раздел быстрого доступа больше не используется */}
+            </div>
 
             {/* Toggle Button (Desktop only) */}
             <div className="hidden lg:block p-4 border-t border-stone-200 dark:border-stone-700">

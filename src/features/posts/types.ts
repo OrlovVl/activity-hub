@@ -11,16 +11,6 @@ export interface Post {
     authorId: number
     subcategoryId: number
     tags: string[]
-    media: {
-        photos: string[]
-        route?: MapRoute
-        spotifyPlaylist?: string
-    }
-    location?: {
-        lat: number
-        lng: number
-        name: string
-    }
     likesCount: number
     commentsCount: number
     createdAt: string
@@ -32,16 +22,6 @@ export interface CreatePostRequest {
     content: string
     subcategoryId: number
     tags: string[]
-    media: {
-        photos: string[]
-        route?: MapRoute
-        spotifyPlaylist?: string
-    }
-    location?: {
-        lat: number
-        lng: number
-        name: string
-    }
 }
 
 export interface UpdatePostRequest extends Partial<CreatePostRequest> { }

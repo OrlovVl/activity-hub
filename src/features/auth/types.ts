@@ -2,11 +2,8 @@ export interface User {
     id: number
     email: string
     username: string
-    avatar: string
-    bio: string
-    createdAt: string
-    favoriteSubcategoryIds: number[]
     role: 'user' | 'moderator' | 'admin'
+    favoriteSubcategoryIds: number[]
     stats?: {
         postsCount: number
         followersCount: number

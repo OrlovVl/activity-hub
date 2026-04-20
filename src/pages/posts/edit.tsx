@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { FaArrowLeft } from 'react-icons/fa'
 import { PostEditor } from '@features/posts/components/post-editor'
 import { Button } from '@/shared/ui/button'
@@ -7,43 +7,96 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { useQuery } from '@tanstack/react-query'
 import { categoriesApi } from '@features/categories/api'
 import { postsApi } from '@features/posts/api'
+import { useAuth } from '@/app/providers/auth-provider'
 import { useQueryClient } from '@tanstack/react-query'
 
-export function CreatePostPage() {
+export function EditPostPage() {
+    const { id } = useParams<{ id: string }>()
+    const postId = Number(id)
     const navigate = useNavigate()
+    const { user } = useAuth()
     const queryClient = useQueryClient()
     const [isSubmitting, setIsSubmitting] = useState(false)
+
+    const { data: post, isLoading: postLoading } = useQuery({
+        queryKey: ['post', postId],
+        queryFn: () => postsApi.getPost(postId),
+        enabled: !!postId
+    })
 
     const { data: subcategories, isLoading: subcategoriesLoading } = useQuery({
         queryKey: ['subcategories'],
         queryFn: () => categoriesApi.getSubcategories()
     })
 
+    useEffect(() => {
+        if (post && user && post.authorId !== user.id) {
+            navigate(`/posts/${postId}`)
+        }
+    }, [post, user, navigate, postId])
+
     const handleSubmit = async (data: { title: string; content: string; subcategoryId: number; tags: string[] }) => {
         setIsSubmitting(true)
         try {
-            await postsApi.createPost({
+            await postsApi.updatePost(postId, {
                 title: data.title,
                 content: data.content,
                 subcategoryId: data.subcategoryId,
                 tags: data.tags,
             })
+            queryClient.invalidateQueries({ queryKey: ['post', postId] })
             queryClient.invalidateQueries({ queryKey: ['posts'] })
-            navigate('/')
+            navigate(`/posts/${postId}`)
         } catch (error) {
-            console.error('Error creating post:', error)
+            console.error('Error updating post:', error)
         } finally {
             setIsSubmitting(false)
         }
     }
 
     const handleCancel = () => {
-        navigate('/')
+        navigate(`/posts/${postId}`)
+    }
+
+    if (postLoading || subcategoriesLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
+            </div>
+        )
+    }
+
+    if (!post) {
+        return (
+            <div className="max-w-4xl mx-auto text-center py-12">
+                <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-4">
+                    Пост не найден
+                </h1>
+                <Button onClick={() => navigate('/')}>
+                    Вернуться на главную
+                </Button>
+            </div>
+        )
+    }
+
+    if (user && post.authorId !== user.id) {
+        return (
+            <div className="max-w-4xl mx-auto text-center py-12">
+                <h1 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-4">
+                    Доступ запрещен
+                </h1>
+                <p className="text-stone-600 dark:text-stone-400 mb-6">
+                    Вы можете редактировать только свои посты
+                </p>
+                <Button onClick={() => navigate(`/posts/${postId}`)}>
+                    Вернуться к посту
+                </Button>
+            </div>
+        )
     }
 
     return (
         <div className="max-w-4xl mx-auto">
-            {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-4">
                     <Button
@@ -55,38 +108,35 @@ export function CreatePostPage() {
                         Назад
                     </Button>
                     <h1 className="text-3xl font-bold text-stone-900 dark:text-stone-100">
-                        Создать пост
+                        Редактировать пост
                     </h1>
                 </div>
             </div>
 
-            {/* Main Content */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Содержание поста</CardTitle>
+                            <CardTitle>Редактирование поста</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            {subcategoriesLoading ? (
-                                <div className="flex items-center justify-center py-8">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
-                                </div>
-                            ) : (
-                                <PostEditor
-                                    subcategories={subcategories || []}
-                                    onSubmit={handleSubmit}
-                                    onCancel={handleCancel}
-                                    isSubmitting={isSubmitting}
-                                />
-                            )}
+                            <PostEditor
+                                subcategories={subcategories || []}
+                                onSubmit={handleSubmit}
+                                onCancel={handleCancel}
+                                isSubmitting={isSubmitting}
+                                initialData={{
+                                    title: post.title,
+                                    content: post.content,
+                                    subcategoryId: post.subcategoryId,
+                                    tags: post.tags,
+                                }}
+                            />
                         </CardContent>
                     </Card>
                 </div>
 
-                {/* Sidebar */}
                 <div className="space-y-6">
-                    {/* Tips */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-lg">Советы</CardTitle>
@@ -97,7 +147,7 @@ export function CreatePostPage() {
                                     <span className="text-amber-800 dark:text-amber-300 text-sm">1</span>
                                 </div>
                                 <p className="text-sm text-stone-600 dark:text-stone-400">
-                                    Выбирайте релевантную подкатегорию для лучшего охвата
+                                    Обновите заголовок и содержание, если нужно
                                 </p>
                             </div>
                             <div className="flex items-start space-x-3">
@@ -105,30 +155,9 @@ export function CreatePostPage() {
                                     <span className="text-amber-800 dark:text-amber-300 text-sm">2</span>
                                 </div>
                                 <p className="text-sm text-stone-600 dark:text-stone-400">
-                                    Добавляйте теги для облегчения поиска
+                                    Можете изменить теги для лучшего поиска
                                 </p>
                             </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Rules */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg">Правила</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                            <p className="text-sm text-stone-600 dark:text-stone-400">
-                                • Запрещен контент 18+
-                            </p>
-                            <p className="text-sm text-stone-600 dark:text-stone-400">
-                                • Уважайте других пользователей
-                            </p>
-                            <p className="text-sm text-stone-600 dark:text-stone-400">
-                                • Не размещайте личную информацию
-                            </p>
-                            <p className="text-sm text-stone-600 dark:text-stone-400">
-                                • Соблюдайте авторские права
-                            </p>
                         </CardContent>
                     </Card>
                 </div>
@@ -137,4 +166,4 @@ export function CreatePostPage() {
     )
 }
 
-export default CreatePostPage
+export default EditPostPage
