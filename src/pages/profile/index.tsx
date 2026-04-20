@@ -18,13 +18,6 @@ export function ProfilePage() {
         setIsEditing(false)
     }
 
-    const stats = [
-        { label: 'Посты', value: '42' },
-        { label: 'Подписчики', value: '1.2K' },
-        { label: 'Подписки', value: '156' },
-        { label: 'Лайки', value: '3.4K' },
-    ]
-
     return (
         <div className="space-y-6">
             {/* Profile Header */}
@@ -70,10 +63,6 @@ export function ProfilePage() {
                                     </p>
                                     <div className="flex flex-wrap gap-2 text-sm text-stone-500 dark:text-stone-500">
                                         <span className="flex items-center">
-                                            <FaMapMarkerAlt className="w-3 h-3 mr-1" />
-                                            Москва, Россия
-                                        </span>
-                                        <span className="flex items-center">
                                             <FaCalendar className="w-3 h-3 mr-1" />
                                             На платформе с {new Date(user.id * 1000000).getFullYear()}
                                         </span>
@@ -87,35 +76,47 @@ export function ProfilePage() {
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {stats.map((stat) => (
-                    <Card key={stat.label} hover>
-                        <CardContent className="p-6 text-center">
-                            <div className="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-1">
-                                {stat.value}
-                            </div>
-                            <div className="text-sm text-stone-600 dark:text-stone-400">
-                                {stat.label}
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-
-            {/* Activity Chart */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Активность</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="h-64 flex items-center justify-center text-stone-400 dark:text-stone-600">
-                        <div className="text-center">
-                            <FaChartLine className="w-12 h-12 mx-auto mb-4" />
-                            <p>График активности</p>
-                            <p className="text-sm">(заглушка для демонстрации)</p>
+                <Card hover>
+                    <CardContent className="p-6 text-center">
+                        <div className="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-1">
+                            {user.stats?.postsCount || 0}
                         </div>
-                    </div>
-                </CardContent>
-            </Card>
+                        <div className="text-sm text-stone-600 dark:text-stone-400">
+                            Посты
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card hover>
+                    <CardContent className="p-6 text-center">
+                        <div className="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-1">
+                            {user.stats?.followersCount || 0}
+                        </div>
+                        <div className="text-sm text-stone-600 dark:text-stone-400">
+                            Подписчики
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card hover>
+                    <CardContent className="p-6 text-center">
+                        <div className="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-1">
+                            {user.stats?.followingCount || 0}
+                        </div>
+                        <div className="text-sm text-stone-600 dark:text-stone-400">
+                            Подписки
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card hover>
+                    <CardContent className="p-6 text-center">
+                        <div className="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-1">
+                            {user.stats?.likesCount || 0}
+                        </div>
+                        <div className="text-sm text-stone-600 dark:text-stone-400">
+                            Лайки
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
 
             {/* Recent Posts */}
             <Card>
