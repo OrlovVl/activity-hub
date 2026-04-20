@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { categoriesApi } from '@features/categories/api'
 import { postsApi } from '@features/posts/api'
 import { usersApi } from '@/features/users/api'
@@ -16,6 +17,8 @@ export function AdminPage() {
     const [activeTab, setActiveTab] = useState<AdminTab>('subcategories')
 
     // Admin/moderator check: user.id === 1 is admin, others are moderators
+    const navigate = useNavigate()
+
     if (!user || user.id !== 1) {
         return (
             <div className="max-w-4xl mx-auto text-center py-12">
@@ -25,7 +28,7 @@ export function AdminPage() {
                 <p className="text-stone-600 dark:text-stone-400 mb-6">
                     У вас нет прав для доступа к панели управления
                 </p>
-                <Button onClick={() => window.location.href = '/'}>
+                <Button onClick={() => navigate('/') }>
                     Вернуться на главную
                 </Button>
             </div>

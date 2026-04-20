@@ -100,7 +100,7 @@ export function RegisterPage() {
     return (
         <div className="min-h-[80vh] flex items-center justify-center">
             <div className="w-full max-w-md">
-                <RegisterForm onSuccess={() => window.location.href = '/'} />
+                <RegisterForm />
             </div>
         </div>
     )

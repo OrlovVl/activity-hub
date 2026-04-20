@@ -15,7 +15,7 @@ function LoadingFallback() {
 
 function App() {
     return (
-        <BrowserRouter>
+        <BrowserRouter basename={import.meta.env.BASE_URL}>
             <AppProviders>
                 <Layout>
                     <Suspense fallback={<LoadingFallback />}>

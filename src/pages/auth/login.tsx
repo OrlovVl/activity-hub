@@ -95,7 +95,7 @@ export function LoginPage() {
     return (
         <div className="min-h-[80vh] flex items-center justify-center">
             <div className="w-full max-w-md">
-                <LoginForm onSuccess={() => window.location.href = '/'} />
+                <LoginForm />
             </div>
         </div>
     )
