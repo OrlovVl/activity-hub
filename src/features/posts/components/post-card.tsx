@@ -17,13 +17,17 @@ interface PostCardProps {
         color: string
     }
     onPostClick?: () => void
+    onCommentClick?: () => void | Promise<void>
+    onShareClick?: () => void
 }
 
 export function PostCard({
     post,
     author,
     subcategory,
-    onPostClick
+    onPostClick,
+    onCommentClick: _onCommentClick,
+    onShareClick: _onShareClick
 }: PostCardProps) {
     const { user } = useAuth()
 
