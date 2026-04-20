@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { FaHeart, FaRegHeart, FaComment, FaShare, FaCalendar, FaUser, FaBookmark } from 'react-icons/fa'
+import { FaHeart, FaRegHeart, FaComment, FaCalendar, FaUser, FaBookmark } from 'react-icons/fa'
 import { Avatar } from '@/shared/ui/avatar'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent } from '@/shared/ui/card'

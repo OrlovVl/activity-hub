@@ -1,5 +1,4 @@
 import React from 'react'
-import { FaHeart, FaRegHeart, FaComment, FaShare } from 'react-icons/fa'
 import { Avatar } from '@/shared/ui/avatar'
 import { Button } from '@/shared/ui/button'
 import { Post } from '../types'
@@ -20,8 +19,6 @@ interface PostCardProps {
         name: string
         color: string
     }
-    onCommentClick?: () => void
-    onShareClick?: () => void
     onPostClick?: () => void
 }
 
@@ -29,30 +26,10 @@ export function PostCard({
     post,
     author,
     subcategory,
-    onCommentClick,
-    onShareClick,
     onPostClick
 }: PostCardProps) {
     const { user } = useAuth()
     const queryClient = useQueryClient()
-    const [liked, setLiked] = React.useState(post.isLiked ?? false)
-
-    const likeMutation = useMutation({
-        mutationFn: () => liked ? postsApi.unlikePost(post.id) : postsApi.likePost(post.id),
-        onSuccess: () => {
-            const newLiked = !liked
-            setLiked(newLiked)
-            queryClient.setQueryData(['posts'], (old: any) => ({
-                ...old,
-                posts: old.posts.map((p: Post) => p.id === post.id ? { ...p, likesCount: newLiked ? p.likesCount + 1 : p.likesCount - 1, isLiked: newLiked } : p)
-            }))
-        },
-    })
-
-    const handleLike = () => {
-        if (!user) return
-        likeMutation.mutate()
-    }
 
     return (
         <div 
@@ -120,40 +97,6 @@ export function PostCard({
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-stone-200 dark:border-stone-700">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                        <button
-                            onClick={handleLike}
-                            disabled={likeMutation.isPending || !user}
-                            className="flex items-center space-x-2 text-stone-600 dark:text-stone-400 hover:text-red-500 transition-colors disabled:opacity-50"
-                        >
-                            {liked ? (
-                                <FaHeart className="w-5 h-5 text-red-500" />
-                            ) : (
-                                <FaRegHeart className="w-5 h-5" />
-                            )}
-                            <span>{post.likesCount + (liked && !likeMutation.isPending ? 1 : 0)}</span>
-                        </button>
-
-                        <button
-                            onClick={onCommentClick}
-                            className="flex items-center space-x-2 text-stone-600 dark:text-stone-400 hover:text-amber-500 transition-colors"
-                        >
-                            <FaComment className="w-5 h-5" />
-                            <span>{post.commentsCount}</span>
-                        </button>
-
-                        <button
-                            onClick={onShareClick}
-                            className="flex items-center space-x-2 text-stone-600 dark:text-stone-400 hover:text-green-500 transition-colors"
-                        >
-                            <FaShare className="w-5 h-5" />
-                            <span>Поделиться</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
         </div>
     )
 }
