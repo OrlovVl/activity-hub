@@ -41,15 +41,16 @@ jobs:
             npx msw init public --no-save
           fi
 
-      - name: Build with mocks enabled
+      - name: Build with server API
         run: |
-          # Создаем .env файл для production сборки
-          echo "VITE_USE_MOCKS=true" > .env.production
-          echo "VITE_BASE_URL=/activity-hub/" >> .env.production
+          # Получаем адрес сервера из GitHub Secrets
+          echo "VITE_API_BASE=${{ secrets.VITE_API_BASE }}" > .env.production
+          echo "VITE_GRAPHQL_URL=${{ secrets.VITE_GRAPHQL_URL }}" >> .env.production
           npm run build
         env:
-          VITE_USE_MOCKS: "true"
-          BASE_URL: "/activity-hub/"
+          VITE_API_BASE: ${{ secrets.VITE_API_BASE }}
+          VITE_GRAPHQL_URL: ${{ secrets.VITE_GRAPHQL_URL }}
+          VITE_USE_MOCKS: "false"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

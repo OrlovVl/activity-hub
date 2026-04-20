@@ -1,11 +1,8 @@
-import React from 'react'
 import { Avatar } from '@/shared/ui/avatar'
 import { Button } from '@/shared/ui/button'
 import { Post } from '../types'
 import { formatDate, truncateText } from '@/shared/utils/helpers'
 import { useAuth } from '@/app/providers/auth-provider'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { postsApi } from '../api'
 
 interface PostCardProps {
     post: Post
@@ -29,7 +26,6 @@ export function PostCard({
     onPostClick
 }: PostCardProps) {
     const { user } = useAuth()
-    const queryClient = useQueryClient()
 
     return (
         <div 
