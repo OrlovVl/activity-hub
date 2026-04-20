@@ -1,0 +1,71 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Initialize MSW for production
+        run: |
+          # Копируем mockServiceWorker.js в правильное место для сборки
+          if [ ! -f "public/mockServiceWorker.js" ]; then
+            echo "Generating mockServiceWorker.js..."
+            npx msw init public --no-save
+          fi
+
+      - name: Build with mocks enabled
+        run: |
+          # Создаем .env файл для production сборки
+          echo "VITE_USE_MOCKS=true" > .env.production
+          echo "VITE_BASE_URL=/activity-hub/" >> .env.production
+          npm run build
+        env:
+          VITE_USE_MOCKS: "true"
+          BASE_URL: "/activity-hub/"
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
