@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FaEdit, FaMapMarkerAlt, FaCalendar, FaChartLine } from 'react-icons/fa'
+import { FaEdit } from 'react-icons/fa'
 import { Avatar } from '@/shared/ui/avatar'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'

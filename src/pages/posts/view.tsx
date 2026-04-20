@@ -170,10 +170,6 @@ export function ViewPostPage() {
                             {bookmarked ? 'В закладках' : 'В закладки'}
                         </span>
                     </button>
-                    <Button onClick={() => navigate('/posts/create')}>
-                        <FaShare className="mr-2" />
-                        Поделиться
-                    </Button>
                     {user?.id === post.authorId && (
                         <Button variant="outline" size="sm" onClick={handleEdit}>
                             Редактировать
