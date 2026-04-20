@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -7,6 +7,7 @@ import { Button } from '@/shared/ui/button'
 import { FaPlus, FaTimes } from 'react-icons/fa'
 import { cn } from '@/shared/utils/helpers'
 import { Subcategory } from '@features/categories/types'
+import { MAIN_CATEGORIES } from '@/shared/utils/constants'
 
 const postSchema = z.object({
     title: z.string()
@@ -15,7 +16,7 @@ const postSchema = z.object({
     content: z.string()
         .min(10, 'Содержание должно быть не менее 10 символов')
         .max(5000, 'Содержание слишком длинное'),
-    subcategoryId: z.number().min(1, 'Выберите категорию'),
+    subcategoryId: z.number().min(1, 'Выберите подкатегорию'),
     tags: z.array(z.string())
         .min(1, 'Добавьте хотя бы один тег')
         .max(10, 'Максимум 10 тегов'),
@@ -41,6 +42,25 @@ export function PostEditor({
     const [tagInput, setTagInput] = useState('')
     const [tags, setTags] = useState<string[]>(initialData?.tags || [])
     const [availableTags, setAvailableTags] = useState<string[]>([])
+    const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(initialData?.subcategoryId ? undefined : undefined)
+
+    // Создаем дерево категорий из подкатегорий
+    const categoryTree = MAIN_CATEGORIES.map(mainCat => ({
+        mainCategory: mainCat,
+        subcategories: subcategories.filter(sub => sub.mainCategoryId === mainCat.id && sub.isApproved)
+    }))
+
+    // Устанавливаем selectedCategoryId на основе initial subcategoryId
+    useEffect(() => {
+        if (initialData?.subcategoryId && categoryTree.length > 0) {
+            const subcategory = categoryTree
+                .flatMap(cat => cat.subcategories)
+                .find(s => s.id === initialData.subcategoryId)
+            if (subcategory) {
+                setSelectedCategoryId(subcategory.mainCategoryId)
+            }
+        }
+    }, [initialData?.subcategoryId, categoryTree])
 
     const {
         register,
@@ -60,10 +80,17 @@ export function PostEditor({
 
     const selectedSubcategoryId = watch('subcategoryId')
 
+    // Получаем подкатегории для выбранной категории
+    const filteredSubcategories = selectedCategoryId
+        ? categoryTree.find(cat => cat.mainCategory.id === selectedCategoryId)?.subcategories || []
+        : []
+
     // Загружаем теги для выбранной подкатегории
     useState(() => {
         if (selectedSubcategoryId) {
-            const subcategory = subcategories.find(s => s.id === selectedSubcategoryId)
+            const subcategory = categoryTree
+                .flatMap(cat => cat.subcategories)
+                .find(s => s.id === selectedSubcategoryId)
             if (subcategory) {
                 setAvailableTags(subcategory.tags)
             }
@@ -93,12 +120,20 @@ export function PostEditor({
         }
     }
 
+    const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const categoryId = parseInt(e.target.value)
+        setSelectedCategoryId(categoryId)
+        // Сбрасываем выбранную подкатегорию при изменении категории
+    }
+
     const handleSubcategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const subcategoryId = parseInt(e.target.value)
         setValue('subcategoryId', subcategoryId)
 
         // Обновляем доступные теги для выбранной подкатегории
-        const subcategory = subcategories.find(s => s.id === subcategoryId)
+        const subcategory = categoryTree
+            .flatMap(cat => cat.subcategories)
+            .find(s => s.id === subcategoryId)
         if (subcategory) {
             setAvailableTags(subcategory.tags)
         }
@@ -119,37 +154,69 @@ export function PostEditor({
                 disabled={isSubmitting}
             />
 
-            {/* Subcategory */}
+            {/* Category */}
             <div className="space-y-2">
                 <label className="block text-sm font-medium text-stone-700 dark:text-stone-300">
                     Категория *
                 </label>
                 <select
-                    {...register('subcategoryId', { valueAsNumber: true })}
-                    onChange={handleSubcategoryChange}
+                    value={selectedCategoryId || ''}
+                    onChange={handleCategoryChange}
                     className={cn(
                         'w-full px-3 py-2 border rounded-lg transition-colors',
                         'bg-white dark:bg-stone-800',
                         'border-stone-300 dark:border-stone-700',
                         'text-stone-900 dark:text-stone-100',
                         'focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent',
-                        errors.subcategoryId && 'border-red-500 focus:ring-red-500'
+                        !selectedCategoryId && 'border-red-500 focus:ring-red-500'
                     )}
                     disabled={isSubmitting}
                 >
                     <option value="">Выберите категорию</option>
-                    {subcategories
-                        .filter(s => s.isApproved)
-                        .map(subcategory => (
-                            <option key={subcategory.id} value={subcategory.id}>
-                                {subcategory.name}
-                            </option>
-                        ))}
+                    {categoryTree.map(category => (
+                        <option key={category.mainCategory.id} value={category.mainCategory.id}>
+                            {category.mainCategory.name}
+                        </option>
+                    ))}
                 </select>
-                {errors.subcategoryId && (
-                    <p className="text-sm text-red-600 dark:text-red-400">{errors.subcategoryId.message}</p>
+                {!selectedCategoryId && (
+                    <p className="text-sm text-red-600 dark:text-red-400">Выберите категорию</p>
                 )}
             </div>
+
+            {/* Subcategory */}
+            {selectedCategoryId && (
+                <div className="space-y-2">
+                    <label className="block text-sm font-medium text-stone-700 dark:text-stone-300">
+                        Подкатегория *
+                    </label>
+                    <select
+                        {...register('subcategoryId', { valueAsNumber: true })}
+                        onChange={handleSubcategoryChange}
+                        className={cn(
+                            'w-full px-3 py-2 border rounded-lg transition-colors',
+                            'bg-white dark:bg-stone-800',
+                            'border-stone-300 dark:border-stone-700',
+                            'text-stone-900 dark:text-stone-100',
+                            'focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent',
+                            errors.subcategoryId && 'border-red-500 focus:ring-red-500'
+                        )}
+                        disabled={isSubmitting}
+                    >
+                        <option value="">Выберите подкатегорию</option>
+                        {filteredSubcategories
+                            .filter(s => s.isApproved)
+                            .map(subcategory => (
+                                <option key={subcategory.id} value={subcategory.id}>
+                                    {subcategory.name}
+                                </option>
+                            ))}
+                    </select>
+                    {errors.subcategoryId && (
+                        <p className="text-sm text-red-600 dark:text-red-400">{errors.subcategoryId.message}</p>
+                    )}
+                </div>
+            )}
 
             {/* Content */}
             <div className="space-y-2">

@@ -22,6 +22,7 @@ interface PostCardProps {
     }
     onCommentClick?: () => void
     onShareClick?: () => void
+    onPostClick?: () => void
 }
 
 export function PostCard({
@@ -29,17 +30,22 @@ export function PostCard({
     author,
     subcategory,
     onCommentClick,
-    onShareClick
+    onShareClick,
+    onPostClick
 }: PostCardProps) {
     const { user } = useAuth()
     const queryClient = useQueryClient()
-    const [liked, setLiked] = React.useState(false)
+    const [liked, setLiked] = React.useState(post.isLiked ?? false)
 
     const likeMutation = useMutation({
         mutationFn: () => liked ? postsApi.unlikePost(post.id) : postsApi.likePost(post.id),
         onSuccess: () => {
-            setLiked(!liked)
-            queryClient.invalidateQueries({ queryKey: ['posts'] })
+            const newLiked = !liked
+            setLiked(newLiked)
+            queryClient.setQueryData(['posts'], (old: any) => ({
+                ...old,
+                posts: old.posts.map((p: Post) => p.id === post.id ? { ...p, likesCount: newLiked ? p.likesCount + 1 : p.likesCount - 1, isLiked: newLiked } : p)
+            }))
         },
     })
 
@@ -49,7 +55,10 @@ export function PostCard({
     }
 
     return (
-        <div className="border rounded-xl overflow-hidden bg-white/80 dark:bg-stone-800/60 backdrop-blur-sm">
+        <div 
+            className="border rounded-xl overflow-hidden bg-white/80 dark:bg-stone-800/60 backdrop-blur-sm cursor-pointer hover:shadow-lg transition-shadow"
+            onClick={onPostClick}
+        >
             {/* Header */}
             <div className="p-4 border-b border-stone-200 dark:border-stone-700">
                 <div className="flex items-start justify-between">

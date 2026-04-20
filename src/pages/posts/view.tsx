@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { FaHeart, FaRegHeart, FaComment, FaShare, FaCalendar, FaUser } from 'react-icons/fa'
+import { FaHeart, FaRegHeart, FaComment, FaShare, FaCalendar, FaUser, FaBookmark } from 'react-icons/fa'
 import { Avatar } from '@/shared/ui/avatar'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent } from '@/shared/ui/card'
@@ -22,6 +22,8 @@ export function ViewPostPage() {
     const queryClient = useQueryClient()
     const postId = Number(id)
     const [liked, setLiked] = useState(false)
+    const [followed, setFollowed] = useState(false)
+    const [bookmarked, setBookmarked] = useState(false)
 
     const { data: post, isLoading: postLoading } = useQuery({
         queryKey: ['post', postId],
@@ -41,17 +43,62 @@ export function ViewPostPage() {
         enabled: !!postId
     })
 
+    useEffect(() => {
+        if (post) {
+            setLiked(post.isLiked || false)
+            setBookmarked(post.isBookmarked || false)
+        }
+    }, [post])
+
     const likeMutation = useMutation({
         mutationFn: () => liked ? likeApi.unlikePost(post!.id) : likeApi.likePost(post!.id),
         onSuccess: () => {
-            setLiked(!liked)
-            queryClient.invalidateQueries({ queryKey: ['post', postId] })
+            const newLiked = !liked
+            setLiked(newLiked)
+            queryClient.setQueryData(['post', postId], (old: any) => ({
+                ...old,
+                likesCount: newLiked ? old.likesCount + 1 : old.likesCount - 1,
+                isLiked: newLiked
+            }))
+        },
+        onError: (error) => {
+            console.error('Like error:', error)
+        },
+    })
+
+    const followMutation = useMutation({
+        mutationFn: () => followed ? usersApi.unfollowUser(post!.authorId) : usersApi.followUser(post!.authorId),
+        onSuccess: () => {
+            setFollowed(!followed)
+        },
+        onError: (error) => {
+            console.error('Follow error:', error)
+        },
+    })
+
+    const bookmarkMutation = useMutation({
+        mutationFn: () => bookmarked ? likeApi.unbookmarkPost(post!.id) : likeApi.bookmarkPost(post!.id),
+        onSuccess: () => {
+            setBookmarked(!bookmarked)
+        },
+        onError: (error) => {
+            console.error('Bookmark error:', error)
         },
     })
 
     const handleLike = () => {
         if (!user || !post) return
         likeMutation.mutate()
+    }
+
+    const handleFollow = () => {
+        if (!user || !post) return
+        followMutation.mutate()
+    }
+
+    const handleBookmark = () => {
+        if (!user || !post) return
+        bookmarkMutation.mutate()
     }
 
     const handleEdit = () => {
@@ -113,6 +160,16 @@ export function ViewPostPage() {
                             {post.likesCount + (liked ? 1 : 0)}
                         </span>
                     </button>
+                    <button
+                        onClick={handleBookmark}
+                        disabled={bookmarkMutation.isPending || !user}
+                        className="flex items-center space-x-2 px-4 py-2 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors disabled:opacity-50"
+                    >
+                        <FaBookmark className={`w-5 h-5 ${bookmarked ? 'text-amber-500' : 'text-stone-500'}`} />
+                        <span className="font-medium">
+                            {bookmarked ? 'В закладках' : 'В закладки'}
+                        </span>
+                    </button>
                     <Button onClick={() => navigate('/posts/create')}>
                         <FaShare className="mr-2" />
                         Поделиться
@@ -144,7 +201,8 @@ export function ViewPostPage() {
                         <div className="flex-1">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <h2 className="text-xl font-semibold text-stone-900 dark:text-stone-100">
+                                    <h2 className="text-xl font-semibold text-stone-900 dark:text-stone-100 cursor-pointer hover:text-amber-600 transition-colors"
+                                        onClick={() => author && navigate(`/users/${author.id}`)}>
                                         {authorLoading ? (
                                             <Skeleton className="h-6 w-32" />
                                         ) : (
@@ -160,9 +218,14 @@ export function ViewPostPage() {
                                     </p>
                                 </div>
                                 {user?.id !== post.authorId && (
-                                    <Button variant="outline" size="sm">
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={handleFollow}
+                                        disabled={followMutation.isPending}
+                                    >
                                         <FaUser className="mr-2" />
-                                        Подписаться
+                                        {followed ? 'Отписаться' : 'Подписаться'}
                                     </Button>
                                 )}
                             </div>

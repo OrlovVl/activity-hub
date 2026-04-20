@@ -15,6 +15,8 @@ export interface Post {
     commentsCount: number
     createdAt: string
     updatedAt: string
+    isLiked?: boolean
+    isBookmarked?: boolean
 }
 
 export interface CreatePostRequest {

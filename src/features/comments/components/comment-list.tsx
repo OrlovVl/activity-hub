@@ -9,6 +9,25 @@ import { useAuth } from '@/app/providers/auth-provider'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { commentsApi } from '../api'
 
+function updateCommentLikes(comments: Comment[], commentId: number, newLiked: boolean): Comment[] {
+    return comments.map(comment => {
+        if (comment.id === commentId) {
+            return {
+                ...comment,
+                likesCount: newLiked ? comment.likesCount + 1 : comment.likesCount - 1,
+                isLiked: newLiked
+            }
+        }
+        if (comment.replies.length > 0) {
+            return {
+                ...comment,
+                replies: updateCommentLikes(comment.replies, commentId, newLiked)
+            }
+        }
+        return comment
+    })
+}
+
 interface CommentItemProps {
     comment: Comment
     level?: number
@@ -34,13 +53,22 @@ export function CommentItem({ comment, level = 0, postId }: CommentItemProps) {
             setIsReplying(false)
             queryClient.invalidateQueries({ queryKey: ['comments', postId] })
         },
+        onError: (error) => {
+            console.error('Reply error:', error)
+        },
     })
 
     const likeMutation = useMutation({
         mutationFn: () => liked ? commentsApi.unlikeComment(comment.id) : commentsApi.likeComment(comment.id),
         onSuccess: () => {
-            setLiked(!liked)
-            queryClient.invalidateQueries({ queryKey: ['comments', postId] })
+            const newLiked = !liked
+            setLiked(newLiked)
+            queryClient.setQueryData(['comments', postId], (old: Comment[]) => 
+                updateCommentLikes(old, comment.id, newLiked)
+            )
+        },
+        onError: (error) => {
+            console.error('Comment like error:', error)
         },
     })
 
@@ -69,7 +97,7 @@ export function CommentItem({ comment, level = 0, postId }: CommentItemProps) {
                     <div className="bg-stone-100 dark:bg-stone-800/50 rounded-2xl rounded-tl-none p-3">
                         <div className="flex items-center justify-between mb-1">
                             <span className="font-semibold text-stone-900 dark:text-stone-100">
-                                Пользователь {comment.authorId}
+                                {comment.author?.username || `Пользователь ${comment.authorId}`}
                             </span>
                             <span className="text-xs text-stone-500 dark:text-stone-400">
                                 {formatDate(comment.createdAt)}
@@ -186,6 +214,9 @@ export function CommentList({ comments, postId }: CommentListProps) {
         onSuccess: () => {
             setNewComment('')
             queryClient.invalidateQueries({ queryKey: ['comments', postId] })
+        },
+        onError: (error) => {
+            console.error('Create comment error:', error)
         },
     })
 

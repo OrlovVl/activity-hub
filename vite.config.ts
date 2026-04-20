@@ -5,7 +5,7 @@ import path from 'path'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: process.env.BASE_URL || '/activity-hub/',
+  base: process.env.NODE_ENV === 'production' ? '/activity-hub/' : '/',
   server: {
     port: 5173,
     open: true,

@@ -178,6 +178,7 @@ export function HomePage() {
                                         subcategory={subcategory}
                                         onCommentClick={() => navigate(`/posts/${post.id}`)}
                                         onShareClick={() => console.log('Share clicked')}
+                                        onPostClick={() => navigate(`/posts/${post.id}`)}
                                     />
                                 )
                             })}
