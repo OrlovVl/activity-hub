@@ -4,9 +4,7 @@ import {
     FaTags,
     FaSearch,
     FaStar,
-    FaPlusCircle,
-    FaUsers,
-    FaCompass,
+    FaPlusCircle
 } from 'react-icons/fa'
 import { cn } from '@/shared/utils/helpers'
 import { useAuth } from '@/app/providers/auth-provider'
@@ -33,8 +31,6 @@ export function Navigation({ isCollapsed, onItemClick }: NavigationProps) {
         { icon: FaHome, label: 'Главная', path: '/' },
         { icon: FaTags, label: 'Категории', path: '/categories' },
         { icon: FaSearch, label: 'Поиск', path: '/search' },
-        { icon: FaCompass, label: 'Исследовать', path: '/explore' },
-        { icon: FaUsers, label: 'Сообщество', path: '/community' },
         { icon: FaStar, label: 'Избранное', path: '/favorites', requiresAuth: true },
     ]
 
