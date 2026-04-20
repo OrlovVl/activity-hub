@@ -62,10 +62,7 @@ export function ProfilePage() {
                                         Участник платформы
                                     </p>
                                     <div className="flex flex-wrap gap-2 text-sm text-stone-500 dark:text-stone-500">
-                                        <span className="flex items-center">
-                                            <FaCalendar className="w-3 h-3 mr-1" />
-                                            На платформе с {new Date(user.id * 1000000).getFullYear()}
-                                        </span>
+
                                     </div>
                                 </>
                             )}
