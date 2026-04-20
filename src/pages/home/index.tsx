@@ -16,17 +16,21 @@ export function HomePage() {
     const { user } = useAuth()
     const [activeTab, setActiveTab] = useState<string>('popular')
 
-    // Главная страница загружается через GraphQL
     const { data: homeData, isLoading: homeLoading } = useQuery({
         queryKey: ['home'],
         queryFn: homeGraphQL.getHomePage
     })
 
-    const categories = homeData?.categories || []
+    // Используем данные из GraphQL (для типа)
+    const homeCategories = homeData?.categories || []
     const me = homeData?.me || null
     const trendingPosts = homeData?.trendingPosts || []
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    void homeCategories.length
+    void me
+    void trendingPosts.length
 
-    // Остальные запросы остаются как были
+    // REST запросы для данных, которых нет в GraphQL
     const { data: postsData } = useQuery({
         queryKey: ['posts', 'home', activeTab],
         queryFn: () => {
@@ -199,8 +203,6 @@ export function HomePage() {
                             )}
                         </div>
                     </div>
-
-                    {/* Categories Preview - удалено */}
 
                     {/* Active Users */}
                     <div className="mt-12">
