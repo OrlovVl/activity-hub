@@ -30,15 +30,12 @@ export function UserProfilePage() {
     })
 
     const followMutation = useMutation({
-        mutationFn: () => user?.id === userId ? Promise.reject('Cannot follow yourself') :
-            usersApi.followUser(userId),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['user', userId] })
+        mutationFn: () => {
+            if (user?.id === userId) {
+                return Promise.reject('Cannot follow yourself')
+            }
+            return usersApi.followUser(userId)
         },
-    })
-
-    const unfollowMutation = useMutation({
-        mutationFn: () => usersApi.unfollowUser(userId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['user', userId] })
         },
@@ -66,7 +63,14 @@ export function UserProfilePage() {
     }
 
     const isOwnProfile = user?.id === userId
-    const isFollowing = false // TODO: get from API
+
+    const { data: followStatus } = useQuery({
+        queryKey: ['followStatus', userId],
+        queryFn: () => usersApi.isFollowing(userId),
+        enabled: !!userId && !isOwnProfile
+    })
+
+    const isFollowing = !isOwnProfile ? (followStatus?.isFollowing ?? false) : false
 
     const stats = [
         { label: 'Посты', value: userPosts?.posts.length || 0 },
@@ -118,8 +122,9 @@ export function UserProfilePage() {
                             {/* Action Button */}
                             {!isOwnProfile && (
                                 <Button
-                                    onClick={() => isFollowing ? unfollowMutation.mutate() : followMutation.mutate()}
-                                    disabled={followMutation.isPending || unfollowMutation.isPending}
+                                    onClick={() => followMutation.mutate()}
+                                    disabled={followMutation.isPending}
+                                    variant={isFollowing ? 'outline' : undefined}
                                 >
                                     <FaUser className="mr-2" />
                                     {isFollowing ? 'Отписаться' : 'Подписаться'}

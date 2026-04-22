@@ -23,8 +23,18 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
 }
 
 export const apiClient = {
-    get: <T>(endpoint: string): Promise<T> =>
-        fetchAPI(endpoint, { method: 'GET' }),
+    get: <T>(endpoint: string, config?: { params?: Record<string, string> }): Promise<T> => {
+        let url = endpoint
+        if (config?.params) {
+            const queryString = Object.entries(config.params)
+                .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+                .join('&')
+            if (queryString) {
+                url += `?${queryString}`
+            }
+        }
+        return fetchAPI(url, { method: 'GET' })
+    },
 
     post: <T>(endpoint: string, data: unknown): Promise<T> =>
         fetchAPI(endpoint, {

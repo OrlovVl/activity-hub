@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { FaHeart, FaRegHeart, FaReply, FaChevronDown, FaChevronRight } from 'react-icons/fa'
 import { Avatar } from '@/shared/ui/avatar'
 import { Button } from '@/shared/ui/button'
@@ -9,19 +9,19 @@ import { useAuth } from '@/app/providers/auth-provider'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { commentsApi } from '../api'
 
-function updateCommentLikes(comments: Comment[], commentId: number, newLiked: boolean): Comment[] {
+function updateCommentLikes(comments: Comment[], commentId: number, newLiked: boolean, newLikesCount?: number): Comment[] {
     return comments.map(comment => {
         if (comment.id === commentId) {
             return {
                 ...comment,
-                likesCount: newLiked ? comment.likesCount + 1 : comment.likesCount - 1,
+                likesCount: newLikesCount !== undefined ? newLikesCount : (newLiked ? (comment.likesCount || 0) + 1 : Math.max(0, (comment.likesCount || 0) - 1)),
                 isLiked: newLiked
             }
         }
-        if (comment.replies.length > 0) {
+        if (comment.replies && comment.replies.length > 0) {
             return {
                 ...comment,
-                replies: updateCommentLikes(comment.replies, commentId, newLiked)
+                replies: updateCommentLikes(comment.replies, commentId, newLiked, newLikesCount)
             }
         }
         return comment
@@ -38,9 +38,20 @@ export function CommentItem({ comment, level = 0, postId }: CommentItemProps) {
     const [isReplying, setIsReplying] = useState(false)
     const [isExpanded, setIsExpanded] = useState(true)
     const [replyContent, setReplyContent] = useState('')
+    const [isLikedLocal, setIsLikedLocal] = useState<boolean>(comment.isLiked || false)
+    const [likesCountLocal, setLikesCountLocal] = useState<number>(comment.likesCount || 0)
+    const isLikedRef = useRef(isLikedLocal)
+    const likesCountLocalRef = useRef(likesCountLocal)
     const { user } = useAuth()
     const queryClient = useQueryClient()
-    const [liked, setLiked] = useState(false)
+
+    // Sync ref with state
+    useEffect(() => {
+        isLikedRef.current = isLikedLocal
+        likesCountLocalRef.current = likesCountLocal
+    }, [isLikedLocal, likesCountLocal])
+
+    const liked = isLikedRef.current
 
     const replyMutation = useMutation({
         mutationFn: () => commentsApi.createComment({
@@ -59,16 +70,29 @@ export function CommentItem({ comment, level = 0, postId }: CommentItemProps) {
     })
 
     const likeMutation = useMutation({
-        mutationFn: () => liked ? commentsApi.unlikeComment(comment.id) : commentsApi.likeComment(comment.id),
-        onSuccess: () => {
-            const newLiked = !liked
-            setLiked(newLiked)
-            queryClient.setQueryData(['comments', postId], (old: Comment[]) => 
-                updateCommentLikes(old, comment.id, newLiked)
-            )
+        mutationFn: (shouldLike: boolean) => commentsApi.likeComment(comment.id, shouldLike),
+        onMutate: async (shouldLike: boolean) => {
+            await queryClient.cancelQueries({ queryKey: ['comments', postId] })
+            const previousComments = queryClient.getQueryData(['comments', postId]) as Comment[]
+            if (previousComments) {
+                const currentLikes = likesCountLocalRef.current ?? 0
+                const newLikesCount = shouldLike ? currentLikes + 1 : Math.max(0, currentLikes - 1)
+                queryClient.setQueryData(['comments', postId],
+                    updateCommentLikes(previousComments, comment.id, shouldLike, newLikesCount)
+                )
+                setIsLikedLocal(shouldLike)
+                setLikesCountLocal(newLikesCount)
+            }
         },
-        onError: (error) => {
-            console.error('Comment like error:', error)
+        onSuccess: (data) => {
+            setIsLikedLocal(data.liked)
+            setLikesCountLocal(data.likesCount)
+        },
+        onError: () => {
+            console.error('Comment like error:')
+            const prevLiked = isLikedRef.current
+            setIsLikedLocal(prevLiked)
+            setLikesCountLocal(likesCountLocalRef.current)
         },
     })
 
@@ -79,7 +103,7 @@ export function CommentItem({ comment, level = 0, postId }: CommentItemProps) {
 
     const handleLike = () => {
         if (!user) return
-        likeMutation.mutate()
+        likeMutation.mutate(!liked)
     }
 
     const hasReplies = comment.replies && comment.replies.length > 0
@@ -120,7 +144,7 @@ export function CommentItem({ comment, level = 0, postId }: CommentItemProps) {
                             ) : (
                                 <FaRegHeart className="w-4 h-4" />
                             )}
-                            <span>{comment.likesCount + (liked && !likeMutation.isPending ? 1 : 0)}</span>
+                            <span>{likesCountLocal ?? comment.likesCount ?? 0}</span>
                         </button>
 
                         <button
@@ -181,12 +205,12 @@ export function CommentItem({ comment, level = 0, postId }: CommentItemProps) {
                     {hasReplies && isExpanded && (
                         <div className="mt-4 space-y-4">
                             {comment.replies.map(reply => (
-                                <CommentItem
-                                    key={reply.id}
-                                    comment={reply}
-                                    level={level + 1}
-                                    postId={postId}
-                                />
+                                    <CommentItem
+                                        key={reply.id}
+                                        comment={reply}
+                                        level={level + 1}
+                                        postId={postId}
+                                    />
                             ))}
                         </div>
                     )}
@@ -251,13 +275,14 @@ export function CommentList({ comments, postId }: CommentListProps) {
 
             {/* Comments list */}
             <div className="space-y-6">
-                {comments.map(comment => (
-                    <CommentItem
-                        key={comment.id}
-                        comment={comment}
-                        postId={postId}
-                    />
-                ))}
+                    {comments.map(comment => (
+                        <CommentItem
+                            key={comment.id}
+                            comment={comment}
+                            level={0}
+                            postId={postId}
+                        />
+                    ))}
             </div>
         </div>
     )

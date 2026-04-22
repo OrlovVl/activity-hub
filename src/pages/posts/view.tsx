@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { FaHeart, FaRegHeart, FaComment, FaCalendar, FaUser, FaBookmark } from 'react-icons/fa'
+import { FaHeart, FaRegHeart, FaComment, FaUser, FaBookmark } from 'react-icons/fa'
 import { Avatar } from '@/shared/ui/avatar'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent } from '@/shared/ui/card'
 import { CommentList } from '@features/comments/components/comment-list'
-import { formatDate } from '@/shared/utils/helpers'
 import { useQuery } from '@tanstack/react-query'
 import { postsApi } from '@features/posts/api'
 import { commentsApi } from '@features/comments/api'
@@ -13,7 +12,7 @@ import { usersApi } from '@/features/users/api'
 import { Skeleton } from '@/shared/ui/skeleton'
 import { useAuth } from '@/app/providers/auth-provider'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { postsApi as likeApi } from '@features/posts/api'
+import { apiClient } from '@/shared/api/client'
 
 export function ViewPostPage() {
     const { id } = useParams<{ id: string }>()
@@ -24,6 +23,7 @@ export function ViewPostPage() {
     const [liked, setLiked] = useState(false)
     const [followed, setFollowed] = useState(false)
     const [bookmarked, setBookmarked] = useState(false)
+    const [likesCount, setLikesCount] = useState(0)
 
     const { data: post, isLoading: postLoading } = useQuery({
         queryKey: ['post', postId],
@@ -43,66 +43,138 @@ export function ViewPostPage() {
         enabled: !!postId
     })
 
+    const { data: isFollowingData } = useQuery({
+        queryKey: ['isFollowing', post?.authorId],
+        queryFn: () => usersApi.isFollowing(post!.authorId),
+        enabled: !!post?.authorId
+    })
+
+    // Синхронизация состояния при загрузке поста
     useEffect(() => {
         if (post) {
             setLiked(post.isLiked || false)
             setBookmarked(post.isBookmarked || false)
+            setLikesCount(post.likesCount || 0)
         }
-    }, [post])
+        if (isFollowingData?.isFollowing !== undefined) {
+            setFollowed(isFollowingData.isFollowing)
+        }
+    }, [post, isFollowingData])
 
-    const likeMutation = useMutation({
-        mutationFn: () => liked ? likeApi.unlikePost(post!.id) : likeApi.likePost(post!.id),
-        onSuccess: () => {
-            const newLiked = !liked
-            setLiked(newLiked)
-            queryClient.setQueryData(['post', postId], (old: any) => ({
-                ...old,
-                likesCount: newLiked ? old.likesCount + 1 : old.likesCount - 1,
-                isLiked: newLiked
-            }))
+    // Like mutation — toggle like/unlike via separate endpoints
+    const likeMutation = useMutation<{ liked: boolean; likesCount: number }, Error, boolean>({
+        mutationFn: (shouldLike: boolean) => 
+            shouldLike 
+                ? apiClient.post<{ liked: boolean; likesCount: number }>(`/posts/${post!.id}/like`, {}) 
+                : apiClient.delete<{ liked: boolean; likesCount: number }>(`/posts/${post!.id}/like`),
+        onMutate: async (shouldLike: boolean) => {
+            // Отменяем реферч и оптимистично обновляем кэш
+            await queryClient.cancelQueries({ queryKey: ['post', postId] })
+            const previousPost = queryClient.getQueryData(['post', postId]) as any
+            if (previousPost) {
+                const newLikesCount = shouldLike 
+                    ? previousPost.likesCount + 1 
+                    : Math.max(0, previousPost.likesCount - 1)
+                queryClient.setQueryData(['post', postId], {
+                    ...previousPost,
+                    likesCount: newLikesCount,
+                    isLiked: shouldLike
+                })
+            }
+            // Оптимистичное обновление локального состояния
+            setLiked(shouldLike)
+            setLikesCount(prev => shouldLike ? prev + 1 : Math.max(0, prev - 1))
+            // Возвращаем предыдущее состояние для отката
+            return { previousLiked: liked, previousLikesCount: likesCount }
         },
-        onError: (error) => {
-            console.error('Like error:', error)
+        onSuccess: (data) => {
+            // Обновляем кэш серверным значением
+            queryClient.setQueryData(['post', postId], {
+                ...(queryClient.getQueryData(['post', postId]) as any),
+                likesCount: data.likesCount,
+                isLiked: data.liked
+            })
+            setLikesCount(data.likesCount)
+            setLiked(data.liked)
+        },
+        onError: (error, shouldLike, context) => {
+            // Откат при ошибке
+            if (context) {
+                setLiked(context.previousLiked)
+                setLikesCount(context.previousLikesCount)
+            } else {
+                setLiked(prev => !prev)
+                setLikesCount(prev => prev + (shouldLike ? -1 : 1))
+            }
+            queryClient.invalidateQueries({ queryKey: ['post', postId] })
         },
     })
 
+    // Follow mutation — toggle follow/unfollow
     const followMutation = useMutation({
-        mutationFn: () => followed ? usersApi.unfollowUser(post!.authorId) : usersApi.followUser(post!.authorId),
-        onSuccess: () => {
-            setFollowed(!followed)
+        mutationFn: (shouldFollow: boolean) => 
+            shouldFollow 
+                ? usersApi.followUser(post!.authorId)
+                : usersApi.unfollowUser(post!.authorId),
+        onMutate: async (shouldFollow: boolean) => {
+            await queryClient.cancelQueries({ queryKey: ['isFollowing', post?.authorId] })
+            const previousFollowing = queryClient.getQueryData(['isFollowing', post?.authorId]) as { isFollowing: boolean } | undefined
+            if (previousFollowing !== undefined) {
+                queryClient.setQueryData(['isFollowing', post?.authorId], { isFollowing: shouldFollow })
+            }
+            setFollowed(shouldFollow)
         },
-        onError: (error) => {
-            console.error('Follow error:', error)
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['isFollowing', post?.authorId] })
+        },
+        onError: () => {
+            setFollowed(prev => !prev)
         },
     })
 
+    // Bookmark mutation — toggle bookmark via separate endpoints
     const bookmarkMutation = useMutation({
-        mutationFn: () => bookmarked ? likeApi.unbookmarkPost(post!.id) : likeApi.bookmarkPost(post!.id),
-        onSuccess: () => {
-            setBookmarked(!bookmarked)
+        mutationFn: (shouldBookmark: boolean) => 
+            shouldBookmark 
+                ? postsApi.bookmarkPost(post!.id)
+                : postsApi.unbookmarkPost(post!.id),
+        onMutate: async (shouldBookmark: boolean) => {
+            await queryClient.cancelQueries({ queryKey: ['post', postId] })
+            const previousPost = queryClient.getQueryData(['post', postId]) as any
+            if (previousPost) {
+                queryClient.setQueryData(['post', postId], {
+                    ...previousPost,
+                    isBookmarked: shouldBookmark
+                })
+            }
+            setBookmarked(shouldBookmark)
         },
-        onError: (error) => {
-            console.error('Bookmark error:', error)
+        onError: () => {
+            setBookmarked(prev => !prev)
         },
     })
 
     const handleLike = () => {
         if (!user || !post) return
-        likeMutation.mutate()
+        likeMutation.mutate(!liked)
     }
 
     const handleFollow = () => {
         if (!user || !post) return
-        followMutation.mutate()
+        followMutation.mutate(!followed)
     }
 
     const handleBookmark = () => {
         if (!user || !post) return
-        bookmarkMutation.mutate()
+        bookmarkMutation.mutate(!bookmarked)
     }
 
     const handleEdit = () => {
         if (post) navigate(`/posts/${post.id}/edit`)
+    }
+
+    const handleAuthorClick = () => {
+        if (author) navigate(`/users/${author.id}`)
     }
 
     if (postLoading) {
@@ -157,7 +229,7 @@ export function ViewPostPage() {
                             <FaRegHeart className="w-5 h-5 text-stone-500" />
                         )}
                         <span className="font-medium">
-                            {post.likesCount + (liked ? 1 : 0)}
+                            {likesCount}
                         </span>
                     </button>
                     <button
@@ -185,7 +257,7 @@ export function ViewPostPage() {
                 </h1>
             </div>
 
-            {/* Author Info */}
+             {/* Author Info */}
             <Card>
                 <CardContent className="p-6">
                     <div className="flex items-center space-x-4">
@@ -198,7 +270,7 @@ export function ViewPostPage() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <h2 className="text-xl font-semibold text-stone-900 dark:text-stone-100 cursor-pointer hover:text-amber-600 transition-colors"
-                                        onClick={() => author && navigate(`/users/${author.id}`)}>
+                                        onClick={handleAuthorClick}>
                                         {authorLoading ? (
                                             <Skeleton className="h-6 w-32" />
                                         ) : (
@@ -214,9 +286,9 @@ export function ViewPostPage() {
                                     </p>
                                 </div>
                                 {user?.id !== post.authorId && (
-                                    <Button 
-                                        variant="outline" 
-                                        size="sm" 
+                                    <Button
+                                        variant={followed ? "primary" : "outline"}
+                                        size="sm"
                                         onClick={handleFollow}
                                         disabled={followMutation.isPending}
                                     >
@@ -224,16 +296,6 @@ export function ViewPostPage() {
                                         {followed ? 'Отписаться' : 'Подписаться'}
                                     </Button>
                                 )}
-                            </div>
-                            <div className="flex items-center space-x-4 mt-4 text-sm text-stone-500 dark:text-stone-500">
-                                <span className="flex items-center">
-                                    <FaCalendar className="w-3 h-3 mr-1" />
-                                    {formatDate(post.createdAt)}
-                                </span>
-                                <span>•</span>
-                                <span>{post.likesCount} лайков</span>
-                                <span>•</span>
-                                <span>{post.commentsCount} комментариев</span>
                             </div>
                         </div>
                     </div>
@@ -266,14 +328,11 @@ export function ViewPostPage() {
             {/* Comments */}
             <Card>
                 <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-6">
+                    <div className="mb-6">
                         <h3 className="text-xl font-semibold text-stone-900 dark:text-stone-100 flex items-center">
                             <FaComment className="w-5 h-5 mr-2" />
                             Комментарии ({comments?.length || 0})
                         </h3>
-                        <Button variant="outline" size="sm">
-                            Сначала новые
-                        </Button>
                     </div>
                     {commentsLoading ? (
                         <div className="space-y-4">
