@@ -6,7 +6,6 @@ import { homeGraphQL } from '@features/home/graphql'
 import { postsApi } from '@features/posts/api'
 import { categoriesApi } from '@features/categories/api'
 import { usersApi } from '@/features/users/api'
-import { User } from '@/features/users/types'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/app/providers/auth-provider'
 import { useState } from 'react'
@@ -14,14 +13,14 @@ import { useState } from 'react'
 export function HomePage() {
     const navigate = useNavigate()
     const { user } = useAuth()
-    const [activeTab, setActiveTab] = useState<string>('popular')
+    const [activeTab, setActiveTab] = useState<string>('new')
 
     const { data: homeData, isLoading: homeLoading } = useQuery({
         queryKey: ['home'],
         queryFn: homeGraphQL.getHomePage
     })
 
-    // Используем данные из GraphQL (для типа)
+    // Данные для UI
     const homeCategories = homeData?.categories || []
     const me = homeData?.me || null
     const trendingPosts = homeData?.trendingPosts || []
@@ -30,27 +29,41 @@ export function HomePage() {
     void me
     void trendingPosts.length
 
-    // REST запросы для данных, которых нет в GraphQL
-    const { data: postsData } = useQuery({
-        queryKey: ['posts', 'home', activeTab],
-        queryFn: () => {
-            const params: any = { limit: 8 }
+    // REST запросы для постов с фильтрами
+    const { data: postsData, isLoading: postsLoading } = useQuery({
+        queryKey: ['posts', 'home', activeTab, user?.id],
+        queryFn: async () => {
             if (activeTab === 'popular') {
-                params.sortBy = 'popularity'
+                return postsApi.getPosts({ limit: 8, sortBy: 'popularity' })
             } else if (activeTab === 'new') {
-                params.sortBy = 'date'
+                return postsApi.getPosts({ limit: 8, sortBy: 'date' })
             } else if (activeTab === 'subscriptions' && user) {
-                params.followedByUserId = user.id
+                // Получаем подписки пользователя и фильтруем посты
+                const followingData = await usersApi.getFollowing()
+                const allPosts: any[] = []
+                for (const userId of (followingData.following || [])) {
+                    const userPosts = await postsApi.getPosts({ userId, limit: 20 })
+                    allPosts.push(...userPosts.posts)
+                }
+                // Удаляем дубликаты и сортируем по дате
+                const uniquePosts = allPosts.filter((post, index, self) => 
+                    index === self.findIndex(p => p.id === post.id)
+                ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                
+                return {
+                    posts: uniquePosts.slice(0, 8),
+                    total: uniquePosts.length
+                }
             } else if (activeTab.startsWith('#')) {
-                params.tag = activeTab.slice(1)
+                return postsApi.getPosts({ limit: 8, tag: activeTab.slice(1) })
             }
-            return postsApi.getPosts(params)
+            return postsApi.getPosts({ limit: 8, sortBy: 'date' })
         }
     })
 
     const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
         queryKey: ['subcategories'],
-        queryFn: () => categoriesApi.getSubcategories()
+        queryFn: () => categoriesApi.getSubcategories({ showAll: true })
     })
 
     const { data: usersData, isLoading: usersLoading } = useQuery({
@@ -58,17 +71,17 @@ export function HomePage() {
         queryFn: () => usersApi.getUsers({ limit: 20 })
     })
 
-    const isLoading = homeLoading || categoriesLoading || usersLoading
+    const isLoading = homeLoading || categoriesLoading || usersLoading || postsLoading
     const posts = postsData?.posts || []
     const subcategories = categoriesData || []
     const users = (usersData?.users || []) || []
 
     const getAuthor = (authorId: number) => {
-        return users.find((u: User) => u.id === authorId)
+        return (users as any[]).find((u: any) => u.id === authorId)
     }
 
     const getSubcategory = (subcategoryId: number) => {
-        const subcategory = subcategories.find(s => s.id === subcategoryId)
+        const subcategory = subcategories.find((s: any) => s.id === subcategoryId)
         if (!subcategory) return null
 
         const mainCategory = subcategory.mainCategoryId
@@ -172,7 +185,7 @@ export function HomePage() {
                                         `Публикации с тегом ${activeTab}`}
                         </h2>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {posts.map(post => {
+                            {posts.map((post: any) => {
                                 const author = getAuthor(post.authorId)
                                 const subcategory = getSubcategory(post.subcategoryId)
 
@@ -210,11 +223,11 @@ export function HomePage() {
                             Активные пользователи
                         </h2>
                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-                            {users.slice(0, 8).map((u: User) => (
+                            {(users as any[]).slice(0, 8).map((u: any) => (
                                 <div
                                     key={u.id}
                                     className="bg-white dark:bg-stone-800 rounded-xl p-4 text-center hover:shadow-lg transition-shadow cursor-pointer"
-                                    onClick={() => navigate(`/profile?id=${u.id}`)}
+                                    onClick={() => navigate(`/users/${u.id}`)}
                                 >
                                     <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-2">
                                         <span className="text-amber-800 dark:text-amber-200 font-semibold">

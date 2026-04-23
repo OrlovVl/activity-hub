@@ -49,6 +49,10 @@ export const postsApi = {
         return apiClient.post(`/posts/${id}/like`, {})
     },
 
+    unlikePost: async (id: number): Promise<{ liked: boolean; likesCount: number }> => {
+        return apiClient.delete(`/posts/${id}/like`)
+    },
+
     bookmarkPost: async (id: number): Promise<{ isBookmarked: boolean }> => {
         return apiClient.post(`/users/me/bookmarks/${id}`, {})
     },

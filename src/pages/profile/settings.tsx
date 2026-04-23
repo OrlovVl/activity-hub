@@ -1,21 +1,51 @@
 import { useState } from 'react'
-import { FaSave, FaKey, FaBell, FaGlobe, FaShieldAlt } from 'react-icons/fa'
+import { FaKey, FaGlobe } from 'react-icons/fa'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { ThemeToggle } from '@features/ui/theme-toggle'
+import { useAuth } from '@/app/providers/auth-provider'
+import { authApi } from '@/features/auth/api'
 
 export function SettingsPage() {
-    const [notifications, setNotifications] = useState({
-        likes: true,
-        comments: true,
-        follows: true,
-        mentions: true,
-    })
+    const { user } = useAuth()
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+    const [isSubmitting, setIsSubmitting] = useState(false)
+    const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-    const handleSave = () => {
-        // Сохранение настроек
-        console.log('Settings saved')
+    if (!user) return null
+
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault()
+        const form = e.target as HTMLFormElement
+        const currentPassword = (form.elements.namedItem('currentPassword') as HTMLInputElement).value
+        const newPassword = (form.elements.namedItem('newPassword') as HTMLInputElement).value
+        const confirmPassword = (form.elements.namedItem('confirmPassword') as HTMLInputElement).value
+
+        if (newPassword !== confirmPassword) {
+            setMessage({ type: 'error', text: 'Новые пароли не совпадают' })
+            return
+        }
+
+        if (newPassword.length < 6) {
+            setMessage({ type: 'error', text: 'Пароль должен быть не менее 6 символов' })
+            return
+        }
+
+        setIsSubmitting(true)
+        setMessage(null)
+
+        try {
+            await authApi.changePassword(currentPassword, newPassword)
+            setMessage({ type: 'success', text: 'Пароль успешно изменен' })
+            ;(form.elements.namedItem('currentPassword') as HTMLInputElement).value = ''
+            ;(form.elements.namedItem('newPassword') as HTMLInputElement).value = ''
+            ;(form.elements.namedItem('confirmPassword') as HTMLInputElement).value = ''
+        } catch (error: any) {
+            setMessage({ type: 'error', text: error.message || 'Ошибка при смене пароля' })
+        } finally {
+            setIsSubmitting(false)
+        }
     }
 
     return (
@@ -24,83 +54,65 @@ export function SettingsPage() {
                 Настройки
             </h1>
 
-            {/* Account Settings */}
+            {message && (
+                <div className={`p-4 rounded-lg ${
+                    message.type === 'success' 
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' 
+                        : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+                }`}>
+                    {message.text}
+                </div>
+            )}
+
+            {/* Password Settings */}
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center">
                         <FaKey className="w-5 h-5 mr-2 text-stone-500" />
-                        Настройки аккаунта
+                        Смена пароля
                     </CardTitle>
                     <CardDescription>
-                        Управление настройками безопасности и доступом
+                        Измените пароль вашего аккаунта
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-4">
-                        <Input
-                            label="Текущий пароль"
-                            type="password"
-                            placeholder="••••••••"
-                        />
-                        <Input
-                            label="Новый пароль"
-                            type="password"
-                            placeholder="••••••••"
-                        />
-                        <Input
-                            label="Подтверждение нового пароля"
-                            type="password"
-                            placeholder="••••••••"
-                        />
-                        <Button>
-                            <FaSave className="mr-2" />
-                            Изменить пароль
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Notification Settings */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center">
-                        <FaBell className="w-5 h-5 mr-2 text-stone-500" />
-                        Уведомления
-                    </CardTitle>
-                    <CardDescription>
-                        Настройте получение уведомлений
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {Object.entries(notifications).map(([key, value]) => (
-                        <div key={key} className="flex items-center justify-between">
-                            <div>
-                                <p className="font-medium text-stone-900 dark:text-stone-100 capitalize">
-                                    {key === 'likes' && 'Лайки'}
-                                    {key === 'comments' && 'Комментарии'}
-                                    {key === 'follows' && 'Подписки'}
-                                    {key === 'mentions' && 'Упоминания'}
-                                </p>
-                                <p className="text-sm text-stone-600 dark:text-stone-400">
-                                    {key === 'likes' && 'Уведомления о лайках'}
-                                    {key === 'comments' && 'Уведомления о новых комментариях'}
-                                    {key === 'follows' && 'Уведомления о новых подписчиках'}
-                                    {key === 'mentions' && 'Уведомления об упоминаниях'}
-                                </p>
-                            </div>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={value}
-                                    onChange={(e) =>
-                                        setNotifications(prev => ({ ...prev, [key]: e.target.checked }))
-                                    }
-                                    className="sr-only peer"
+                <CardContent>
+                    <form onSubmit={handleChangePassword} className="space-y-4">
+                        <div className="space-y-4">
+                            <div className="relative">
+                                <Input
+                                    label="Текущий пароль"
+                                    type={showCurrentPassword ? "text" : "password"}
+                                    name="currentPassword"
+                                    placeholder="••••••••"
+                                    required
                                 />
-                                <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none peer-focus:ring-amber-500 rounded-full peer dark:bg-stone-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-                            </label>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                    className="absolute right-3 top-[34px] text-stone-500 hover:text-stone-700"
+                                >
+                                    {showCurrentPassword ? 'Скрыть' : 'Показать'}
+                                </button>
+                            </div>
+                            <Input
+                                label="Новый пароль"
+                                type="password"
+                                name="newPassword"
+                                placeholder="••••••••"
+                                required
+                            />
+                            <Input
+                                label="Подтверждение нового пароля"
+                                type="password"
+                                name="confirmPassword"
+                                placeholder="••••••••"
+                                required
+                            />
+                            <Button type="submit" disabled={isSubmitting}>
+                                Изменить пароль
+                            </Button>
                         </div>
-                    ))}
+                    </form>
                 </CardContent>
             </Card>
 
@@ -129,83 +141,6 @@ export function SettingsPage() {
                     </div>
                 </CardContent>
             </Card>
-
-            {/* Privacy */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center">
-                        <FaShieldAlt className="w-5 h-5 mr-2 text-stone-500" />
-                        Конфиденциальность
-                    </CardTitle>
-                    <CardDescription>
-                        Управление настройками приватности
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="font-medium text-stone-900 dark:text-stone-100">
-                                Профиль открыт для всех
-                            </p>
-                            <p className="text-sm text-stone-600 dark:text-stone-400">
-                                Любой пользователь может видеть ваш профиль
-                            </p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" className="sr-only peer" defaultChecked />
-                            <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none peer-focus:ring-amber-500 rounded-full peer dark:bg-stone-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-                        </label>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="font-medium text-stone-900 dark:text-stone-100">
-                                Разрешить сообщения
-                            </p>
-                            <p className="text-sm text-stone-600 dark:text-stone-400">
-                                Любой пользователь может отправить вам сообщение
-                            </p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" className="sr-only peer" defaultChecked />
-                            <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none peer-focus:ring-amber-500 rounded-full peer dark:bg-stone-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-                        </label>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Danger Zone */}
-            <Card className="border-red-200 dark:border-red-900/50">
-                <CardHeader>
-                    <CardTitle className="text-red-600 dark:text-red-400">
-                        Опасная зона
-                    </CardTitle>
-                    <CardDescription className="text-red-600/80 dark:text-red-400/80">
-                        Эти действия нельзя отменить
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="font-medium text-stone-900 dark:text-stone-100">
-                                Удалить аккаунт
-                            </p>
-                            <p className="text-sm text-stone-600 dark:text-stone-400">
-                                Навсегда удалить аккаунт и все данные
-                            </p>
-                        </div>
-                        <Button variant="danger">
-                            Удалить аккаунт
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <div className="flex justify-end">
-                <Button onClick={handleSave} size="lg">
-                    <FaSave className="mr-2" />
-                    Сохранить все настройки
-                </Button>
-            </div>
         </div>
     )
 }

@@ -1,5 +1,6 @@
 import { apiClient } from '@/shared/api/client'
 import { User } from './types'
+import { Subcategory } from '@/features/categories/types'
 
 export const usersApi = {
     getUsers: async (params?: {
@@ -37,5 +38,21 @@ export const usersApi = {
 
     getMe: async (): Promise<User & { favoriteSubcategoryIds: number[]; following: number[] }> => {
         return apiClient.get('/users/me')
+    },
+
+    getFollowing: async (): Promise<{ following: number[] }> => {
+        return apiClient.get('/users/me/following')
+    },
+
+    getFavoriteSubcategories: async (): Promise<Subcategory[]> => {
+        return apiClient.get<Subcategory[]>('/users/me/favorites/subcategories')
+    },
+
+    addFavoriteSubcategory: async (id: number): Promise<Subcategory> => {
+        return apiClient.post<Subcategory>(`/users/me/favorites/subcategories/${id}`, {})
+    },
+
+    removeFavoriteSubcategory: async (id: number): Promise<void> => {
+        return apiClient.delete(`/users/me/favorites/subcategories/${id}`)
     },
 }

@@ -4,11 +4,18 @@ export interface MapRoute {
     duration?: number
 }
 
+export interface PostAuthor {
+    id: number
+    username: string
+    avatar?: string
+}
+
 export interface Post {
     id: number
     title: string
     content: string
     authorId: number
+    author?: PostAuthor
     subcategoryId: number
     tags: string[]
     likesCount: number

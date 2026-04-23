@@ -16,6 +16,7 @@ const SearchPage = React.lazy(() => import('@pages/search').then(m => ({ default
 const SettingsPage = React.lazy(() => import('@pages/profile/settings').then(m => ({ default: m.SettingsPage })))
 const AdminPage = React.lazy(() => import('@pages/admin').then(m => ({ default: m.AdminPage })))
 const UserProfilePage = React.lazy(() => import('@pages/users/profile').then(m => ({ default: m.UserProfilePage })))
+const FavoritesPage = React.lazy(() => import('@pages/favorites').then(m => ({ default: m.FavoritesPage })))
 
 // Loading component
 function LoadingFallback() {
@@ -72,6 +73,7 @@ export function AppRouter() {
                 <Route path="/posts/create" element={<ProtectedRoute><CreatePostPage /></ProtectedRoute>} />
                 <Route path="/posts/:id/edit" element={<ProtectedRoute><EditPostPage /></ProtectedRoute>} />
                 <Route path="/users/:id" element={<UserProfilePage />} />
+                <Route path="/favorites" element={<ProtectedRoute><FavoritesPage /></ProtectedRoute>} />
                 <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

@@ -97,9 +97,9 @@ export function ViewPostPage() {
             setLikesCount(data.likesCount)
             setLiked(data.liked)
         },
-        onError: (error, shouldLike, context) => {
+        onError: (_, shouldLike, context: any) => {
             // Откат при ошибке
-            if (context) {
+            if (context && context.previousLiked !== undefined) {
                 setLiked(context.previousLiked)
                 setLikesCount(context.previousLikesCount)
             } else {

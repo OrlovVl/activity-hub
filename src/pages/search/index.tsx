@@ -1,56 +1,34 @@
 import { useState } from 'react'
-import { FaSearch, FaFilter, FaHistory, FaTimes, FaFire, FaStar, FaMapMarkerAlt, FaCalendar } from 'react-icons/fa'
+import { useNavigate } from 'react-router-dom'
+import { FaSearch, FaFilter, FaTimes, FaFire, FaCalendar } from 'react-icons/fa'
 import { Input } from '@/shared/ui/input'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent } from '@/shared/ui/card'
 import { PostCard } from '@features/posts/components/post-card'
 import { Avatar } from '@/shared/ui/avatar'
 import { useQuery } from '@tanstack/react-query'
-import { postsApi } from '@features/posts/api'
-import { categoriesApi } from '@features/categories/api'
-import { usersApi } from '@/features/users/api'
 import { searchApi } from '@/features/search/api'
-import { User } from '@/features/users/types'
-import { Post } from '@/features/posts/types'
+import type { Post } from '@/features/posts/types'
+import type { User } from '@/features/users/types'
 
 export function SearchPage() {
+    const navigate = useNavigate()
     const [searchQuery, setSearchQuery] = useState('')
     const [showFilters, setShowFilters] = useState(false)
     const [selectedTags, setSelectedTags] = useState<string[]>([])
     const [dateRange, setDateRange] = useState({ from: '', to: '' })
     const [sortBy, setSortBy] = useState<'relevance' | 'date' | 'popularity'>('relevance')
 
-    const { refetch: search, isFetching } = useQuery({
-        queryKey: ['search', searchQuery],
+    const { data: searchData, isLoading: searchLoading, refetch: performSearch } = useQuery({
+        queryKey: ['search', searchQuery, selectedTags, dateRange, sortBy],
         queryFn: () => searchApi.search(searchQuery),
         enabled: false
-    })
-
-    const { data: postsData } = useQuery({
-        queryKey: ['posts', 'search'],
-        queryFn: () => postsApi.getPosts({ limit: 10 })
-    })
-
-    const { data: usersData } = useQuery({
-        queryKey: ['users', 'search'],
-        queryFn: () => usersApi.getUsers({ limit: 10 })
-    })
-
-    const { data: subcategoriesData } = useQuery({
-        queryKey: ['subcategories'],
-        queryFn: () => categoriesApi.getSubcategories()
     })
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault()
         if (searchQuery.trim()) {
-            search()
-        }
-    }
-
-    const handleTagClick = (tag: string) => {
-        if (!selectedTags.includes(tag)) {
-            setSelectedTags([...selectedTags, tag])
+            performSearch()
         }
     }
 
@@ -65,11 +43,13 @@ export function SearchPage() {
         setSortBy('relevance')
     }
 
-    const posts = postsData?.posts || []
-    const users = usersData?.users || []
-    const subcategories = subcategoriesData || []
-    const searchHistory: string[] = []
-    const popularTags: { tag: string, count: number }[] = []
+    const handlePostClick = (postId: number) => {
+        navigate(`/posts/${postId}`)
+    }
+
+    const posts = searchData?.posts || []
+    const users = searchData?.users || []
+    const subcategories = searchData?.subcategories || []
 
     return (
         <div className="space-y-6">
@@ -94,7 +74,7 @@ export function SearchPage() {
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="pl-10"
-                                disabled={isFetching}
+                                disabled={searchLoading}
                             />
                         </div>
 
@@ -124,13 +104,13 @@ export function SearchPage() {
                                 type="button"
                                 variant="outline"
                                 onClick={() => setShowFilters(!showFilters)}
-                                disabled={isFetching}
+                                disabled={searchLoading}
                             >
                                 <FaFilter className="mr-2" />
                                 Фильтры {showFilters ? '↑' : '↓'}
                             </Button>
                             <div className="flex items-center space-x-3">
-                                <Button type="submit" loading={isFetching}>
+                                <Button type="submit" loading={searchLoading}>
                                     <FaSearch className="mr-2" />
                                     Искать
                                 </Button>
@@ -143,7 +123,6 @@ export function SearchPage() {
                         {/* Filters */}
                         {showFilters && (
                             <div className="pt-4 border-t border-stone-200 dark:border-stone-700 space-y-4">
-                                {/* Sort */}
                                 <div>
                                     <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-2">
                                         Сортировка
@@ -158,10 +137,11 @@ export function SearchPage() {
                                                 key={value}
                                                 type="button"
                                                 onClick={() => setSortBy(value as any)}
-                                                className={`flex items-center px-4 py-2 rounded-lg transition-colors ${sortBy === value
-                                                    ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300'
-                                                    : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700'
-                                                    }`}
+                                                className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                                                    sortBy === value
+                                                        ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300'
+                                                        : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700'
+                                                }`}
                                             >
                                                 <Icon className="w-4 h-4 mr-2" />
                                                 {label}
@@ -170,7 +150,6 @@ export function SearchPage() {
                                     </div>
                                 </div>
 
-                                {/* Date Range */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-2">
@@ -193,17 +172,6 @@ export function SearchPage() {
                                         />
                                     </div>
                                 </div>
-
-                                {/* Location */}
-                                <div>
-                                    <label className="flex items-center space-x-3 text-sm text-stone-500 dark:text-stone-500">
-                                        <FaMapMarkerAlt className="w-4 h-4 mr-2" />
-                                        Локация
-                                    </label>
-                                    <Input
-                                        placeholder="Введите город или регион"
-                                    />
-                                </div>
                             </div>
                         )}
                     </form>
@@ -211,119 +179,134 @@ export function SearchPage() {
             </Card>
 
             {/* Search Results */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Main Results */}
-                <div className="lg:col-span-2 space-y-6">
-                    <h2 className="text-xl font-semibold text-stone-900 dark:text-stone-100">
-                        Результаты поиска ({posts.length})
-                    </h2>
+            {searchQuery && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Main Results */}
+                    <div className="lg:col-span-2 space-y-6">
+                        <h2 className="text-xl font-semibold text-stone-900 dark:text-stone-100">
+                            Результаты поиска ({posts.length + users.length + subcategories.length})
+                        </h2>
 
-                    <div className="space-y-6">
-                        {posts.map((post: Post) => {
-                            const author = users.find((author: User) => author.id === post.authorId)
-                            const subcategory = subcategories.find(s => s.id === post.subcategoryId)
-
-                            if (!author || !subcategory) return null
-
-                            return (
-                                <PostCard
-                                    key={post.id}
-                                    post={post}
-                                    author={{
-                                        id: author.id,
-                                        username: author.username,
-                                    }}
-                                    subcategory={{
-                                        id: subcategory.id,
-                                        name: subcategory.name,
-                                        color: '#a16207'
-                                    }}
-                                    onCommentClick={() => console.log('Comment clicked')}
-                                    onShareClick={() => console.log('Share clicked')}
-                                />
-                            )
-                        })}
-                    </div>
-                </div>
-
-                {/* Sidebar */}
-                <div className="space-y-6">
-                    {/* Search History */}
-                    <Card>
-                        <CardContent className="p-6">
-                            <h3 className="font-semibold text-stone-900 dark:text-stone-100 mb-4 flex items-center">
-                                <FaHistory className="w-4 h-4 mr-2" />
-                                История поиска
-                            </h3>
-                            <div className="space-y-2">
-                                {searchHistory.map((query, index) => (
-                                    <button
-                                        key={index}
-                                        onClick={() => setSearchQuery(query)}
-                                        className="w-full text-left p-2 rounded hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors text-sm text-stone-600 dark:text-stone-400"
-                                    >
-                                        {query}
-                                    </button>
-                                ))}
+                        {/* Subcategories Results */}
+                        {subcategories.length > 0 && (
+                            <div>
+                                <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-3">
+                                    Подкатегории
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {subcategories.map((sub: any) => (
+                                        <Card
+                                            key={sub.id}
+                                            className="cursor-pointer hover:shadow-lg transition-shadow"
+                                            onClick={() => navigate(`/categories?sub=${sub.id}`)}
+                                        >
+                                            <CardContent className="p-3">
+                                                <p className="font-medium text-stone-900 dark:text-stone-100 text-sm">
+                                                    {sub.name}
+                                                </p>
+                                                {sub.description && (
+                                                    <p className="text-xs text-stone-600 dark:text-stone-400 mt-1">
+                                                        {sub.description}
+                                                    </p>
+                                                )}
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
                             </div>
-                        </CardContent>
-                    </Card>
+                        )}
 
-                    {/* Popular Tags */}
-                    <Card>
-                        <CardContent className="p-6">
-                            <h3 className="font-semibold text-stone-900 dark:text-stone-100 mb-4 flex items-center">
-                                <FaFire className="w-4 h-4 mr-2" />
-                                Популярные теги
-                            </h3>
-                            <div className="space-y-3">
-                                {popularTags.map(({ tag, count }) => (
-                                    <button
-                                        key={tag}
-                                        onClick={() => handleTagClick(tag)}
-                                        className="w-full flex items-center justify-between p-2 rounded hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors group"
-                                    >
-                                        <span className="text-stone-700 dark:text-stone-300 group-hover:text-amber-600">
-                                            #{tag}
-                                        </span>
-                                        <span className="text-xs text-stone-500 dark:text-stone-500">
-                                            {count.toLocaleString()}
-                                        </span>
-                                    </button>
-                                ))}
+                        {/* Posts Results */}
+                        {posts.length > 0 && (
+                            <div>
+                                <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-3">
+                                    Посты
+                                </h3>
+                                <div className="space-y-4">
+                                    {posts.map((post: Post) => (
+                                        <PostCard
+                                            key={post.id}
+                                            post={post}
+                                            author={{
+                                                id: post.authorId,
+                                                username: post.authorId.toString()
+                                            }}
+                                            subcategory={{
+                                                id: post.subcategoryId,
+                                                name: 'Категория',
+                                                color: '#a16207'
+                                            }}
+                                            onPostClick={() => handlePostClick(post.id)}
+                                        />
+                                    ))}
+                                </div>
                             </div>
-                        </CardContent>
-                    </Card>
+                        )}
 
-                    {/* Users */}
-                    <Card>
-                        <CardContent className="p-6">
-                            <h3 className="font-semibold text-stone-900 dark:text-stone-100 mb-4">
-                                Пользователи
-                            </h3>
-                            <div className="space-y-4">
-                                {users.slice(0, 3).map((user: User) => (
-                                    <div key={user.id} className="flex items-center space-x-3">
-                                        <Avatar size="sm" fallback={(user.username || 'U').slice(0, 2).toUpperCase()} />
-                                        <div className="flex-1">
-                                            <p className="font-medium text-stone-900 dark:text-stone-100">
-                                                {user.username}
-                                            </p>
-                                            <p className="text-xs text-stone-500 dark:text-stone-500">
-                                                {user.id} постов
-                                            </p>
+                        {/* Users Results */}
+                        {users.length > 0 && (
+                            <div>
+                                <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-3">
+                                    Пользователи
+                                </h3>
+                                <div className="space-y-4">
+                                    {users.map((u: User) => (
+                                        <div
+                                            key={u.id}
+                                            className="flex items-center space-x-3 p-3 bg-white dark:bg-stone-800 rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                                            onClick={() => navigate(`/users/${u.id}`)}
+                                        >
+                                            <Avatar size="md" fallback={(u.username || 'U').slice(0, 2).toUpperCase()} />
+                                            <div className="flex-1">
+                                                <p className="font-medium text-stone-900 dark:text-stone-100">
+                                                    {u.username}
+                                                </p>
+                                                <p className="text-sm text-stone-600 dark:text-stone-400">
+                                                    {u.email}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <Button size="sm" variant="outline">
-                                            <FaStar className="w-3 h-3 mr-1" />
-                                            Подписаться
-                                        </Button>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
-                        </CardContent>
-                    </Card>
+                        )}
+
+                        {/* Empty state */}
+                        {posts.length === 0 && users.length === 0 && subcategories.length === 0 && (
+                            <div className="text-center text-stone-500 dark:text-stone-400 py-12">
+                                <FaSearch className="w-12 h-12 mx-auto mb-4 text-stone-300 dark:text-stone-600" />
+                                <p className="text-lg">Ничего не найдено по запросу "{searchQuery}"</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Sidebar - Related subcategories */}
+                    {subcategories.length > 0 && (
+                        <div className="space-y-6">
+                            <Card>
+                                <CardContent className="p-6">
+                                    <h3 className="font-semibold text-stone-900 dark:text-stone-100 mb-4">
+                                        Подкатегории
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {subcategories.map((sub: any) => (
+                                            <button
+                                                key={sub.id}
+                                                onClick={() => navigate(`/categories?sub=${sub.id}`)}
+                                                className="w-full flex items-center justify-between p-2 rounded hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors group"
+                                            >
+                                                <span className="text-stone-700 dark:text-stone-300 group-hover:text-amber-600">
+                                                    {sub.name}
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    )}
                 </div>
-            </div>
+            )}
         </div>
     )
 }

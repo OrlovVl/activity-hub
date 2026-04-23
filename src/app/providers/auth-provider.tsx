@@ -13,17 +13,37 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+const USER_STORAGE_KEY = 'auth_user'
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<User | null>(null)
+    const [user, setUser] = useState<User | null>(() => {
+        // Восстанавливаем пользователя из localStorage при инициализации
+        const saved = localStorage.getItem(USER_STORAGE_KEY)
+        return saved ? JSON.parse(saved) : null
+    })
     const [isLoading, setIsLoading] = useState(true)
+
+    const saveUser = (userData: User | null) => {
+        setUser(userData)
+        if (userData) {
+            localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData))
+        } else {
+            localStorage.removeItem(USER_STORAGE_KEY)
+        }
+    }
 
     useEffect(() => {
         const initAuth = async () => {
+            // Если пользователь уже сохранен, не делаем запрос
+            if (user) {
+                setIsLoading(false)
+                return
+            }
             try {
                 const userData = await authApi.getCurrentUser()
-                setUser(userData)
+                saveUser(userData)
             } catch {
-                setUser(null)
+                saveUser(null)
             } finally {
                 setIsLoading(false)
             }
@@ -34,17 +54,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const login = async (email: string, password: string) => {
         const userData = await authApi.login(email, password)
-        setUser(userData)
+        saveUser(userData)
     }
 
     const register = async (email: string, password: string, username: string) => {
         const userData = await authApi.register(email, password, username)
-        setUser(userData)
+        saveUser(userData)
     }
 
     const logout = async () => {
         await authApi.logout()
-        setUser(null)
+        saveUser(null)
     }
 
     const updateUser = (updates: Partial<User>) => {
