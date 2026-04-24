@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { FaUser, FaArrowLeft } from 'react-icons/fa'
+import { FaUser, FaArrowLeft, FaCheck } from 'react-icons/fa'
 import { Avatar } from '@/shared/ui/avatar'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent } from '@/shared/ui/card'
@@ -17,15 +17,20 @@ export function UserProfilePage() {
     const queryClient = useQueryClient()
     const userId = Number(id)
 
-    const { data: profileUser, isLoading: userLoading } = useQuery({
+    const { data: profileUser, isLoading: userLoading, error: userError } = useQuery({
         queryKey: ['user', userId],
         queryFn: () => usersApi.getUser(userId),
-        enabled: !!userId
+        enabled: !!userId,
+        retry: (failureCount: number, error: Error) => {
+            // Не повторяем при 404
+            if (error.message.includes('404')) return false
+            return failureCount < 3
+        }
     })
 
-    const { data: userPosts, isLoading: postsLoading } = useQuery({
+    const { data: userPosts, isLoading: postsLoading, error: postsError } = useQuery({
         queryKey: ['userPosts', userId],
-        queryFn: () => postsApi.getPosts({ userId }),
+        queryFn: () => postsApi.getPosts({ authorId: userId }),
         enabled: !!userId
     })
 
@@ -38,9 +43,27 @@ export function UserProfilePage() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['user', userId] })
+            queryClient.invalidateQueries({ queryKey: ['followStatus', userId] })
+        },
+        onError: (error: unknown) => {
+            console.error('Follow error:', error)
         },
     })
 
+    const unfollowMutation = useMutation({
+        mutationFn: () => {
+            return usersApi.unfollowUser(userId)
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['user', userId] })
+            queryClient.invalidateQueries({ queryKey: ['followStatus', userId] })
+        },
+        onError: (error: unknown) => {
+            console.error('Unfollow error:', error)
+        },
+    })
+
+    // Обработка ошибок
     if (userLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen">
@@ -49,12 +72,15 @@ export function UserProfilePage() {
         )
     }
 
-    if (!profileUser) {
+    if (userError || !profileUser) {
         return (
             <div className="max-w-4xl mx-auto text-center py-12">
                 <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-4">
                     Пользователь не найден
                 </h1>
+                <p className="text-stone-600 dark:text-stone-400 mb-6">
+                    {userError instanceof Error ? userError.message : 'Запрашиваемый пользователь не существует'}
+                </p>
                 <Button onClick={() => navigate('/')}>
                     Вернуться на главную
                 </Button>
@@ -67,17 +93,26 @@ export function UserProfilePage() {
     const { data: followStatus } = useQuery({
         queryKey: ['followStatus', userId],
         queryFn: () => usersApi.isFollowing(userId),
-        enabled: !!userId && !isOwnProfile
+        enabled: !!userId && !isOwnProfile,
+        staleTime: 1000 * 60 * 5, // Кэшируем на 5 минут
     })
 
     const isFollowing = !isOwnProfile ? (followStatus?.isFollowing ?? false) : false
 
+    // Получаем статистику из API
     const stats = [
-        { label: 'Посты', value: userPosts?.posts.length || 0 },
-        { label: 'Подписчики', value: '1.2K' }, // TODO: get from API
-        { label: 'Подписки', value: '156' }, // TODO: get from API
-        { label: 'Лайки', value: '3.4K' }, // TODO: get from API
+        { label: 'Посты', value: profileUser?.stats?.postsCount || userPosts?.total || 0 },
+        { label: 'Подписчики', value: profileUser?.stats?.followersCount || 0 },
+        { label: 'Подписки', value: profileUser?.stats?.followingCount || 0 },
+        { label: 'Лайки', value: profileUser?.stats?.likesCount || 0 },
     ]
+
+    const formatNumber = (num: number): string => {
+        if (num > 1000) {
+            return `${(num / 1000).toFixed(1)}K`
+        }
+        return num.toString()
+    }
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
@@ -101,16 +136,18 @@ export function UserProfilePage() {
                             <h1 className="text-3xl font-bold text-stone-900 dark:text-stone-100 mb-2">
                                 {profileUser.username}
                             </h1>
-                            <p className="text-stone-600 dark:text-stone-400 mb-4">
-                                Участник платформы
-                            </p>
+                            {profileUser.bio && (
+                                <p className="text-stone-600 dark:text-stone-400 mb-4">
+                                    {profileUser.bio}
+                                </p>
+                            )}
 
                             {/* Stats */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                                 {stats.map(stat => (
                                     <div key={stat.label} className="text-center">
                                         <div className="text-2xl font-bold text-stone-900 dark:text-stone-100">
-                                            {stat.value}
+                                            {formatNumber(stat.value)}
                                         </div>
                                         <div className="text-sm text-stone-600 dark:text-stone-400">
                                             {stat.label}
@@ -121,14 +158,27 @@ export function UserProfilePage() {
 
                             {/* Action Button */}
                             {!isOwnProfile && (
-                                <Button
-                                    onClick={() => followMutation.mutate()}
-                                    disabled={followMutation.isPending}
-                                    variant={isFollowing ? 'outline' : undefined}
-                                >
-                                    <FaUser className="mr-2" />
-                                    {isFollowing ? 'Отписаться' : 'Подписаться'}
-                                </Button>
+                                <div className="flex gap-2">
+                                    {!isFollowing && (
+                                        <Button
+                                            onClick={() => followMutation.mutate()}
+                                            disabled={followMutation.isPending || unfollowMutation.isPending}
+                                        >
+                                            <FaUser className="mr-2" />
+                                            {followMutation.isPending ? 'Подписка...' : 'Подписаться'}
+                                        </Button>
+                                    )}
+                                    {isFollowing && (
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => unfollowMutation.mutate()}
+                                            disabled={followMutation.isPending || unfollowMutation.isPending}
+                                        >
+                                            <FaCheck className="mr-2" />
+                                            {unfollowMutation.isPending ? 'Отписка...' : 'Отписаться'}
+                                        </Button>
+                                    )}
+                                </div>
                             )}
                         </div>
                     </div>
@@ -144,16 +194,14 @@ export function UserProfilePage() {
                     <div className="flex items-center justify-center py-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
                     </div>
-                ) : userPosts?.posts.length ? (
+                ) : postsError ? (
+                    <div className="text-center text-red-600 dark:text-red-400 py-8">
+                        Ошибка загрузки постов: {postsError instanceof Error ? postsError.message : 'Неизвестная ошибка'}
+                    </div>
+                ) : userPosts?.posts && userPosts.posts.length > 0 ? (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {userPosts.posts.map(post => {
                             const author = profileUser
-                            const subcategory = {
-                                id: post.subcategoryId,
-                                name: 'Категория', // TODO: get subcategory name
-                                color: '#a16207'
-                            }
-
                             return (
                                 <PostCard
                                     key={post.id}
@@ -161,8 +209,17 @@ export function UserProfilePage() {
                                     author={{
                                         id: author.id,
                                         username: author.username,
+                                        avatar: author.avatar,
                                     }}
-                                    subcategory={subcategory}
+                                    subcategory={post.subcategoryId ? {
+                                        id: post.subcategoryId,
+                                        name: 'Категория',
+                                        color: '#a16207'
+                                    } : {
+                                        id: 0,
+                                        name: 'Без категории',
+                                        color: '#a16207'
+                                    }}
                                     onPostClick={() => navigate(`/posts/${post.id}`)}
                                 />
                             )

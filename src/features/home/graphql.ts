@@ -5,7 +5,7 @@ export interface GraphQLUser {
     id: number
     username: string
     email: string
-    role: 'user' | 'moderator' | 'admin'
+    role: 'user' | 'admin'
     createdAt: string
     favoriteSubcategoryIds: number[]
     stats?: {
@@ -22,7 +22,6 @@ export interface GraphQLPost {
     content: string
     authorId: number
     subcategoryId: number
-    tags: string[]
     likesCount: number
     commentsCount: number
     createdAt: string

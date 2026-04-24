@@ -1,6 +1,6 @@
 import { PostCard } from '@features/posts/components/post-card'
 import { Button } from '@/shared/ui/button'
-import { FaPlus, FaFire, FaClock, FaStar, FaCompass } from 'react-icons/fa'
+import { FaPlus, FaClock, FaStar, FaCompass } from 'react-icons/fa'
 import { useQuery } from '@tanstack/react-query'
 import { homeGraphQL } from '@features/home/graphql'
 import { postsApi } from '@features/posts/api'
@@ -20,43 +20,40 @@ export function HomePage() {
         queryFn: homeGraphQL.getHomePage
     })
 
-    // Данные для UI
-    const homeCategories = homeData?.categories || []
-    const me = homeData?.me || null
-    const trendingPosts = homeData?.trendingPosts || []
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    void homeCategories.length
-    void me
-    void trendingPosts.length
+    void homeData
 
     // REST запросы для постов с фильтрами
     const { data: postsData, isLoading: postsLoading } = useQuery({
         queryKey: ['posts', 'home', activeTab, user?.id],
         queryFn: async () => {
-            if (activeTab === 'popular') {
-                return postsApi.getPosts({ limit: 8, sortBy: 'popularity' })
-            } else if (activeTab === 'new') {
+            if (activeTab === 'new') {
                 return postsApi.getPosts({ limit: 8, sortBy: 'date' })
             } else if (activeTab === 'subscriptions' && user) {
-                // Получаем подписки пользователя и фильтруем посты
+                // Получаем ID подписок
                 const followingData = await usersApi.getFollowing()
+                const followingIds = followingData.following || []
+                
+                if (followingIds.length === 0) {
+                    return { posts: [], total: 0 }
+                }
+
+                // Получаем посты от подписок
                 const allPosts: any[] = []
-                for (const userId of (followingData.following || [])) {
-                    const userPosts = await postsApi.getPosts({ userId, limit: 20 })
+                for (const userId of followingIds) {
+                    const userPosts = await postsApi.getPosts({ userId, limit: 50 })
                     allPosts.push(...userPosts.posts)
                 }
                 // Удаляем дубликаты и сортируем по дате
                 const uniquePosts = allPosts.filter((post, index, self) => 
                     index === self.findIndex(p => p.id === post.id)
-                ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                ).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                 
                 return {
                     posts: uniquePosts.slice(0, 8),
                     total: uniquePosts.length
                 }
-            } else if (activeTab.startsWith('#')) {
-                return postsApi.getPosts({ limit: 8, tag: activeTab.slice(1) })
             }
+            // Default to new
             return postsApi.getPosts({ limit: 8, sortBy: 'date' })
         }
     })
@@ -96,12 +93,7 @@ export function HomePage() {
 
     const getCategoryColor = (categoryId: number) => {
         const colors = [
-            '#a16207', // янтарный
-            '#0ea5e9', // голубой
-            '#8b5cf6', // фиолетовый
-            '#10b981', // зеленый
-            '#ef4444', // красный
-            '#ec4899', // розовый
+            '#a16207', '#0ea5e9', '#8b5cf6', '#10b981', '#ef4444', '#ec4899',
         ]
         return colors[(categoryId - 1) % colors.length]
     }
@@ -148,14 +140,6 @@ export function HomePage() {
                     <div className="flex items-center justify-between">
                         <div className="flex space-x-2 overflow-x-auto pb-2">
                             <Button
-                                variant={activeTab === 'popular' ? 'primary' : 'outline'}
-                                size="sm"
-                                onClick={() => setActiveTab('popular')}
-                            >
-                                <FaFire className="mr-2" />
-                                Популярное
-                            </Button>
-                            <Button
                                 variant={activeTab === 'new' ? 'primary' : 'outline'}
                                 size="sm"
                                 onClick={() => setActiveTab('new')}
@@ -179,39 +163,37 @@ export function HomePage() {
                     {/* Recent Posts */}
                     <div>
                         <h2 className="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-4">
-                            {activeTab === 'popular' ? 'Все популярные публикации' :
-                                activeTab === 'new' ? 'Последние публикации' :
-                                    activeTab === 'subscriptions' ? 'Ваши подписки' :
-                                        `Публикации с тегом ${activeTab}`}
+                            {activeTab === 'new' ? 'Последние публикации' : 'Ваши подписки'}
                         </h2>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {posts.map((post: any) => {
                                 const author = getAuthor(post.authorId)
                                 const subcategory = getSubcategory(post.subcategoryId)
 
-                                if (!author || !subcategory) return null
+                                // Используем fallback данные если автор не найден в users list
+                                const authorData = author || { id: post.authorId, username: 'Автор' }
 
                                 return (
                                     <PostCard
                                         key={post.id}
                                         post={post}
                                         author={{
-                                            id: author.id,
-                                            username: author.username,
+                                            id: authorData.id,
+                                            username: authorData.username,
                                         }}
-                                        subcategory={subcategory}
+                                        subcategory={subcategory || {
+                                            id: post.subcategoryId,
+                                            name: 'Без категории',
+                                            color: '#a16207'
+                                        }}
                                         onCommentClick={() => navigate(`/posts/${post.id}`)}
-                                        onShareClick={() => console.log('Share clicked')}
                                         onPostClick={() => navigate(`/posts/${post.id}`)}
                                     />
                                 )
                             })}
                             {posts.length === 0 && (
                                 <div className="col-span-full text-center text-stone-500 dark:text-stone-400 py-8">
-                                    {activeTab === 'popular' ? 'Пока нет популярных публикаций.' :
-                                        activeTab === 'new' ? 'Нет последних публикаций.' :
-                                        activeTab === 'subscriptions' ? 'Вы еще ни на кого не подписаны, или у ваших подписок нет публикаций.' :
-                                        `Нет публикаций с тегом ${activeTab.slice(1)}.`}
+                                    {activeTab === 'new' ? 'Нет последних публикаций.' : 'Вы еще ни на кого не подписаны, или у ваших подписок нет публикаций.'}
                                 </div>
                             )}
                         </div>

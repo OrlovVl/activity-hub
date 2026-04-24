@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FaSearch, FaFilter, FaTimes, FaFire, FaCalendar } from 'react-icons/fa'
+import { FaSearch } from 'react-icons/fa'
 import { Input } from '@/shared/ui/input'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent } from '@/shared/ui/card'
@@ -14,33 +14,37 @@ import type { User } from '@/features/users/types'
 export function SearchPage() {
     const navigate = useNavigate()
     const [searchQuery, setSearchQuery] = useState('')
-    const [showFilters, setShowFilters] = useState(false)
-    const [selectedTags, setSelectedTags] = useState<string[]>([])
-    const [dateRange, setDateRange] = useState({ from: '', to: '' })
-    const [sortBy, setSortBy] = useState<'relevance' | 'date' | 'popularity'>('relevance')
+    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-    const { data: searchData, isLoading: searchLoading, refetch: performSearch } = useQuery({
-        queryKey: ['search', searchQuery, selectedTags, dateRange, sortBy],
-        queryFn: () => searchApi.search(searchQuery),
-        enabled: false
+    // Debounce: задержка 500ms перед отправкой запроса
+    const debouncedQuery = searchQuery.trim().length >= 2 ? searchQuery.trim() : ''
+
+    const { data: searchData, isLoading: searchLoading } = useQuery({
+        queryKey: ['search', debouncedQuery],
+        queryFn: () => searchApi.search(debouncedQuery),
+        enabled: debouncedQuery.length > 0,
+        refetchOnWindowFocus: false,
     })
 
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault()
-        if (searchQuery.trim()) {
-            performSearch()
+    // Clear debounce timer on unmount or query change
+    useEffect(() => {
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current)
         }
-    }
-
-    const removeTag = (tagToRemove: string) => {
-        setSelectedTags(selectedTags.filter(tag => tag !== tagToRemove))
-    }
+        if (searchQuery.trim().length >= 2) {
+            debounceTimerRef.current = setTimeout(() => {
+                // queryFn will be triggered automatically by react-query
+            }, 500)
+        }
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current)
+            }
+        }
+    }, [searchQuery])
 
     const clearFilters = () => {
         setSearchQuery('')
-        setSelectedTags([])
-        setDateRange({ from: '', to: '' })
-        setSortBy('relevance')
     }
 
     const handlePostClick = (postId: number) => {
@@ -66,7 +70,7 @@ export function SearchPage() {
             {/* Search Form */}
             <Card>
                 <CardContent className="p-6">
-                    <form onSubmit={handleSearch} className="space-y-4">
+                    <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
                         <div className="relative">
                             <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-stone-400" />
                             <Input
@@ -78,37 +82,7 @@ export function SearchPage() {
                             />
                         </div>
 
-                        {/* Selected Tags */}
-                        {selectedTags.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                                {selectedTags.map(tag => (
-                                    <span
-                                        key={tag}
-                                        className="inline-flex items-center px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 text-sm"
-                                    >
-                                        #{tag}
-                                        <button
-                                            onClick={() => removeTag(tag)}
-                                            className="ml-2 hover:text-red-500"
-                                            type="button"
-                                        >
-                                            <FaTimes className="w-3 h-3" />
-                                        </button>
-                                    </span>
-                                ))}
-                            </div>
-                        )}
-
                         <div className="flex items-center justify-between">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setShowFilters(!showFilters)}
-                                disabled={searchLoading}
-                            >
-                                <FaFilter className="mr-2" />
-                                Фильтры {showFilters ? '↑' : '↓'}
-                            </Button>
                             <div className="flex items-center space-x-3">
                                 <Button type="submit" loading={searchLoading}>
                                     <FaSearch className="mr-2" />
@@ -119,67 +93,12 @@ export function SearchPage() {
                                 </Button>
                             </div>
                         </div>
-
-                        {/* Filters */}
-                        {showFilters && (
-                            <div className="pt-4 border-t border-stone-200 dark:border-stone-700 space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-2">
-                                        Сортировка
-                                    </label>
-                                    <div className="flex space-x-2">
-                                        {[
-                                            { value: 'relevance', label: 'По релевантности', icon: FaSearch },
-                                            { value: 'date', label: 'По дате', icon: FaCalendar },
-                                            { value: 'popularity', label: 'По популярности', icon: FaFire },
-                                        ].map(({ value, label, icon: Icon }) => (
-                                            <button
-                                                key={value}
-                                                type="button"
-                                                onClick={() => setSortBy(value as any)}
-                                                className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
-                                                    sortBy === value
-                                                        ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300'
-                                                        : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700'
-                                                }`}
-                                            >
-                                                <Icon className="w-4 h-4 mr-2" />
-                                                {label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-2">
-                                            От
-                                        </label>
-                                        <Input
-                                            type="date"
-                                            value={dateRange.from}
-                                            onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-2">
-                                            До
-                                        </label>
-                                        <Input
-                                            type="date"
-                                            value={dateRange.to}
-                                            onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                     </form>
                 </CardContent>
             </Card>
 
             {/* Search Results */}
-            {searchQuery && (
+            {debouncedQuery && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Main Results */}
                     <div className="lg:col-span-2 space-y-6">
@@ -275,7 +194,7 @@ export function SearchPage() {
                         {posts.length === 0 && users.length === 0 && subcategories.length === 0 && (
                             <div className="text-center text-stone-500 dark:text-stone-400 py-12">
                                 <FaSearch className="w-12 h-12 mx-auto mb-4 text-stone-300 dark:text-stone-600" />
-                                <p className="text-lg">Ничего не найдено по запросу "{searchQuery}"</p>
+                                <p className="text-lg">Ничего не найдено по запросу "{debouncedQuery}"</p>
                             </div>
                         )}
                     </div>

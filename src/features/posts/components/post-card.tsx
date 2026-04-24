@@ -118,20 +118,6 @@ export function PostCard({
                 <p className="text-stone-700 dark:text-stone-300 mb-4">
                     {truncateText(post.content, 300)}
                 </p>
-
-                {/* Tags */}
-                {post.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-4">
-                        {post.tags.map(tag => (
-                            <span
-                                key={tag}
-                                className="px-2 py-1 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 rounded-full"
-                            >
-                                #{tag}
-                            </span>
-                        ))}
-                    </div>
-                )}
             </div>
 
             {/* Footer */}

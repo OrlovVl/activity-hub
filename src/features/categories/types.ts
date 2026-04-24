@@ -1,16 +1,17 @@
-import { MAIN_CATEGORIES } from '@/shared/utils/constants'
-
-export type MainCategory = typeof MAIN_CATEGORIES[number]
+export interface MainCategory {
+    id: number
+    name: string
+    description: string
+    iconKey?: string
+    color?: string
+}
 
 export interface Subcategory {
     id: number
     name: string
     description: string
     mainCategoryId: number
-    createdByUserId: number
     isApproved: boolean
-    moderators: number[]
-    tags: string[]
     createdAt: string
 }
 

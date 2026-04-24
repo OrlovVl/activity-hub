@@ -2,7 +2,6 @@ import { FaBars, FaPlus } from 'react-icons/fa'
 import { useUIStore } from '@/app/store/ui-store'
 import { useAuth } from '@/app/providers/auth-provider'
 import { UserMenu } from '@widgets/header/user-menu'
-import { Notifications } from '@widgets/header/notifications'
 import { Button } from '@/shared/ui/button'
 import { ThemeToggle } from '@features/ui/theme-toggle'
 import { Link, useNavigate } from 'react-router-dom'
@@ -52,7 +51,6 @@ export function Header() {
                                 Создать пост
                             </Button>
 
-                            <Notifications />
                             <UserMenu />
                         </>
                     ) : (

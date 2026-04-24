@@ -24,6 +24,11 @@ export function EditPostPage() {
         enabled: !!postId
     })
 
+    const { data: mainCategories, isLoading: mainCategoriesLoading } = useQuery({
+        queryKey: ['mainCategories'],
+        queryFn: () => categoriesApi.getMainCategories()
+    })
+
     const { data: subcategories, isLoading: subcategoriesLoading } = useQuery({
         queryKey: ['subcategories'],
         queryFn: () => categoriesApi.getSubcategories()
@@ -35,14 +40,13 @@ export function EditPostPage() {
         }
     }, [post, user, navigate, postId])
 
-    const handleSubmit = async (data: { title: string; content: string; subcategoryId: number; tags: string[] }) => {
+    const handleSubmit = async (data: { title: string; content: string; subcategoryId: number }) => {
         setIsSubmitting(true)
         try {
             await postsApi.updatePost(postId, {
                 title: data.title,
                 content: data.content,
                 subcategoryId: data.subcategoryId,
-                tags: data.tags,
             })
             queryClient.invalidateQueries({ queryKey: ['post', postId] })
             queryClient.invalidateQueries({ queryKey: ['posts'] })
@@ -58,7 +62,7 @@ export function EditPostPage() {
         navigate(`/posts/${postId}`)
     }
 
-    if (postLoading || subcategoriesLoading) {
+    if (postLoading || subcategoriesLoading || mainCategoriesLoading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
@@ -121,6 +125,7 @@ export function EditPostPage() {
                         </CardHeader>
                         <CardContent>
                             <PostEditor
+                                mainCategories={mainCategories || []}
                                 subcategories={subcategories || []}
                                 onSubmit={handleSubmit}
                                 onCancel={handleCancel}
@@ -129,7 +134,6 @@ export function EditPostPage() {
                                     title: post.title,
                                     content: post.content,
                                     subcategoryId: post.subcategoryId,
-                                    tags: post.tags,
                                 }}
                             />
                         </CardContent>

@@ -21,7 +21,7 @@ export const categoriesApi = {
         return apiClient.get<Subcategory[]>(`/subcategories?${query}`)
     },
 
-    createSubcategory: async (data: Omit<Subcategory, 'id' | 'createdAt' | 'isApproved' | 'moderators' | 'createdByUserId'>): Promise<Subcategory> => {
+    createSubcategory: async (data: Omit<Subcategory, 'id' | 'createdAt' | 'isApproved'>): Promise<Subcategory> => {
         return apiClient.post<Subcategory>('/subcategories', data)
     },
 

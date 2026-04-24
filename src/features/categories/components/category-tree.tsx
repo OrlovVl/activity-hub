@@ -93,9 +93,6 @@ export function CategoryTree({
                                             <span className="text-stone-700 dark:text-stone-300">
                                                 {subcategory.name}
                                             </span>
-                                            <span className="text-xs text-stone-500">
-                                                ({subcategory.tags.length})
-                                            </span>
                                         </div>
                                         {subcategory.description && (
                                             <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">

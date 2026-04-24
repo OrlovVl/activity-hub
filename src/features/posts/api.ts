@@ -4,6 +4,7 @@ import { Post, CreatePostRequest, UpdatePostRequest } from './types'
 export const postsApi = {
     getPosts: async (params?: {
         subcategoryId?: number
+        authorId?: number
         userId?: number
         tag?: string
         limit?: number
@@ -16,7 +17,9 @@ export const postsApi = {
     }): Promise<{ posts: Post[]; total: number }> => {
         const queryParams: Record<string, string> = {}
         if (params?.subcategoryId) queryParams.subcategoryId = params.subcategoryId.toString()
-        if (params?.userId) queryParams.userId = params.userId.toString()
+        // Поддерживаем как authorId (серверный параметр), так и userId (для обратной совместимости)
+        if (params?.authorId) queryParams.authorId = params.authorId.toString()
+        if (params?.userId) queryParams.authorId = params.userId.toString()
         if (params?.tag) queryParams.tag = params.tag
         if (params?.limit) queryParams.limit = params.limit.toString()
         if (params?.offset) queryParams.offset = params.offset.toString()

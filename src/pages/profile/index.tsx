@@ -28,7 +28,7 @@ export function ProfilePage() {
     // Загружаем посты текущего пользователя
     const { data: userPosts, isLoading: postsLoading } = useQuery({
         queryKey: ['userPosts', user.id],
-        queryFn: () => postsApi.getPosts({ userId: user.id, limit: 50 }),
+        queryFn: () => postsApi.getPosts({ authorId: user.id, limit: 50 }),
         enabled: !!user.id
     })
 

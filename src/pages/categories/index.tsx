@@ -22,32 +22,26 @@ const MAIN_CATEGORY_COLORS: Record<number, string> = {
     6: '#ec4899',
 }
 
-const MAIN_CATEGORY_ICONS: Record<number, string> = {
-    1: '🚗',
-    2: '🌊',
-    3: '✈️',
-    4: '🥾',
-    5: '⚡',
-    6: '🎵',
-}
-
-// Модальное окно для предложения подкатегории
+// Модальное окно для предложения подкатегории с выбором категории
 function SuggestSubcategoryModal({ 
     onClose, 
-    onSuggest 
+    onSuggest,
+    mainCategories
 }: { 
     onClose: () => void
-    onSuggest: (name: string, description: string) => Promise<void>
+    onSuggest: (name: string, description: string, mainCategoryId: number) => Promise<void>
+    mainCategories: any[]
 }) {
     const [name, setName] = useState('')
     const [description, setDescription] = useState('')
+    const [selectedCategoryId, setSelectedCategoryId] = useState<number>(mainCategories[0]?.id || 1)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (name.trim()) {
             setIsSubmitting(true)
-            await onSuggest(name.trim(), description.trim())
+            await onSuggest(name.trim(), description.trim(), selectedCategoryId)
             setIsSubmitting(false)
         }
     }
@@ -59,6 +53,21 @@ function SuggestSubcategoryModal({
                     Предложить подкатегорию
                 </h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">
+                            Категория *
+                        </label>
+                        <select
+                            value={selectedCategoryId}
+                            onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
+                            className="w-full px-3 py-2 border rounded-lg transition-colors bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                            required
+                        >
+                            {mainCategories.map((cat: any) => (
+                                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                            ))}
+                        </select>
+                    </div>
                     <div>
                         <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">
                             Название *
@@ -100,10 +109,6 @@ function getMainCategoryColor(subcategory: Subcategory): string {
     return MAIN_CATEGORY_COLORS[subcategory.mainCategoryId] || '#6b7280'
 }
 
-function getMainCategoryIcon(subcategory: Subcategory): string {
-    return MAIN_CATEGORY_ICONS[subcategory.mainCategoryId] || '📁'
-}
-
 export function CategoriesPage() {
     const navigate = useNavigate()
     const { user } = useAuth()
@@ -114,7 +119,6 @@ export function CategoriesPage() {
     const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set())
     const [searchQuery, setSearchQuery] = useState('')
     const [showSuggestModal, setShowSuggestModal] = useState(false)
-    const [suggestMainCategoryId, setSuggestMainCategoryId] = useState<number>(1)
 
     // Получаем главную категорию из URL
     const mainCategoryIdFromUrl = searchParams.get('mainCat')
@@ -143,7 +147,6 @@ export function CategoriesPage() {
                 name: data.name,
                 description: data.description,
                 mainCategoryId: data.mainCategoryId,
-                tags: []
             }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['subcategories'] })
@@ -157,8 +160,7 @@ export function CategoriesPage() {
     const filteredSubcategories = allSubcategories.filter(sc =>
         !searchQuery ||
         sc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        sc.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        sc.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+        sc.description.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
     const groupedByMainCategory = allMainCategories
@@ -170,8 +172,8 @@ export function CategoriesPage() {
 
     // Если выбранная главная категория из URL и она не в сгруппированных, добавляем её
     if (mainCategoryIdFromUrl) {
-        const mainCat = allMainCategories.find(c => c.id === mainCategoryIdFromUrl)
-        if (mainCat && !groupedByMainCategory.find(g => g.mainCategory.id === mainCat.id)) {
+        const mainCat = allMainCategories.find((c: any) => c.id === mainCategoryIdFromUrl)
+        if (mainCat && !groupedByMainCategory.find((g: any) => g.mainCategory.id === mainCat.id)) {
             const subs = filteredSubcategories.filter(sc => sc.mainCategoryId === mainCat.id)
             if (subs.length > 0) {
                 groupedByMainCategory.unshift({ mainCategory: mainCat, subcategories: subs })
@@ -222,26 +224,24 @@ export function CategoriesPage() {
         }
     }
 
-    const handleSuggestClick = (mainCatId: number) => {
-        setSuggestMainCategoryId(mainCatId)
+    const handleSuggestClick = (_mainCatId: number) => {
         setShowSuggestModal(true)
     }
 
-    const handleSuggestSubmit = async (name: string, description: string) => {
-        suggestMutation.mutate({ name, description, mainCategoryId: suggestMainCategoryId })
+    const handleSuggestSubmit = async (name: string, description: string, mainCategoryId: number) => {
+        suggestMutation.mutate({ name, description, mainCategoryId })
     }
 
     // Subcategory posts view
     if (selectedSubcategory) {
         const posts = postsData?.posts || []
         const color = getMainCategoryColor(selectedSubcategory)
-        const icon = getMainCategoryIcon(selectedSubcategory)
 
         return (
             <div className="space-y-6">
                 <div className="flex items-center space-x-4">
                     <Button variant="ghost" size="sm" onClick={handleBackToCategories}>
-                        ← Назад к категориям
+                        Назад к категориям
                     </Button>
                     <div>
                         <h1 className="text-3xl font-bold text-stone-900 dark:text-stone-100">
@@ -256,7 +256,7 @@ export function CategoriesPage() {
                                 style={{ backgroundColor: color }}
                             />
                             <span className="text-xs text-stone-500">
-                                {icon} {allMainCategories.find(c => c.id === selectedSubcategory.mainCategoryId)?.name}
+                                {allMainCategories.find((c: any) => c.id === selectedSubcategory.mainCategoryId)?.name}
                             </span>
                         </div>
                     </div>
@@ -297,8 +297,8 @@ export function CategoriesPage() {
                                         {post.content}
                                     </p>
                                     <div className="flex items-center justify-between text-sm text-stone-500">
-                                        <span>❤️ {post.likesCount}</span>
-                                        <span>💬 {post.commentsCount}</span>
+                                        <span>{post.likesCount}</span>
+                                        <span>{post.commentsCount}</span>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -362,10 +362,8 @@ export function CategoriesPage() {
                                     className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl"
                                     style={{ backgroundColor: `${MAIN_CATEGORY_COLORS[mainCategory.id] || '#a16207'}20` }}
                                 >
-                                    <span
-                                        style={{ color: MAIN_CATEGORY_COLORS[mainCategory.id] || '#a16207' }}
-                                    >
-                                        {MAIN_CATEGORY_ICONS[mainCategory.id] || '📁'}
+                                    <span className="text-stone-900 dark:text-stone-100 font-bold">
+                                        {mainCategory.id}
                                     </span>
                                 </div>
                                 <div className="flex-1">
@@ -422,18 +420,6 @@ export function CategoriesPage() {
                                                         <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
                                                             {subcategory.description}
                                                         </p>
-                                                    )}
-                                                    {subcategory.tags.length > 0 && (
-                                                        <div className="flex flex-wrap gap-1 mt-2">
-                                                            {subcategory.tags.slice(0, 3).map(tag => (
-                                                                <span
-                                                                    key={tag}
-                                                                    className="text-xs px-2 py-0.5 rounded-full bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400"
-                                                                >
-                                                                    {tag}
-                                                                </span>
-                                                            ))}
-                                                        </div>
                                                     )}
                                                 </div>
                                                 {user && (
@@ -514,6 +500,7 @@ export function CategoriesPage() {
                 <SuggestSubcategoryModal
                     onClose={() => setShowSuggestModal(false)}
                     onSuggest={handleSuggestSubmit}
+                    mainCategories={allMainCategories}
                 />
             )}
         </div>

@@ -2,7 +2,7 @@ export interface User {
     id: number
     email: string
     username: string
-    role: 'user' | 'moderator' | 'admin'
+    role: 'user' | 'admin'
     favoriteSubcategoryIds: number[]
     stats?: {
         postsCount: number

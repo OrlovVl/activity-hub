@@ -16,10 +16,10 @@ export function AdminPage() {
     const queryClient = useQueryClient()
     const [activeTab, setActiveTab] = useState<AdminTab>('subcategories')
 
-    // Admin/moderator check: user.id === 1 is admin, others are moderators
+    // Admin check: only admin can access
     const navigate = useNavigate()
 
-    if (!user || user.id !== 1) {
+    if (!user || user.role !== 'admin') {
         return (
             <div className="max-w-4xl mx-auto text-center py-12">
                 <h1 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-4">
@@ -43,7 +43,7 @@ export function AdminPage() {
                         Панель управления
                     </h1>
                     <p className="text-stone-600 dark:text-stone-400">
-                        {user.id === 1 ? 'Администратор' : 'Модератор'}
+                        Администратор
                     </p>
                 </div>
             </div>
@@ -122,7 +122,7 @@ function SubcategoriesTab({ queryClient }: { queryClient: any }) {
                                         <h3 className="font-semibold text-stone-900 dark:text-stone-100">{sub.name}</h3>
                                         <p className="text-sm text-stone-600 dark:text-stone-400">{sub.description}</p>
                                         <p className="text-xs text-stone-500 dark:text-stone-500 mt-1">
-                                            Категория ID: {sub.mainCategoryId} | Теги: {sub.tags.join(', ')}
+                                            Категория ID: {sub.mainCategoryId}
                                         </p>
                                     </div>
                                     <div className="flex space-x-2">
@@ -267,8 +267,14 @@ function UsersTab() {
                                     <td className="p-3 text-stone-600 dark:text-stone-400">{u.id}</td>
                                     <td className="p-3 text-stone-900 dark:text-stone-100">{u.username}</td>
                                     <td className="p-3 text-stone-600 dark:text-stone-400">{u.email}</td>
-                                    <td className="p-3 text-stone-600 dark:text-stone-400">
-                                        Пользователь
+                                    <td className="p-3">
+                                        <span className={`px-2 py-1 text-xs rounded-full ${
+                                            u.role === 'admin' 
+                                                ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' 
+                                                : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400'
+                                        }`}>
+                                            {u.role === 'admin' ? 'Админ' : 'Пользователь'}
+                                        </span>
                                     </td>
                                     <td className="p-3 text-stone-600 dark:text-stone-400">
                                         {new Date(u.id * 1000000).toLocaleDateString('ru-RU')}

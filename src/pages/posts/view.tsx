@@ -159,10 +159,11 @@ export function ViewPostPage() {
         likeMutation.mutate(!liked)
     }
 
-    const handleFollow = () => {
-        if (!user || !post) return
-        followMutation.mutate(!followed)
-    }
+    // handleFollow оставлен для будущей использования
+    // const handleFollow = () => {
+    //     if (!user || !post) return
+    //     followMutation.mutate(!followed)
+    // }
 
     const handleBookmark = () => {
         if (!user || !post) return
@@ -285,17 +286,17 @@ export function ViewPostPage() {
                                         )}
                                     </p>
                                 </div>
-                                {user?.id !== post.authorId && (
-                                    <Button
-                                        variant={followed ? "primary" : "outline"}
-                                        size="sm"
-                                        onClick={handleFollow}
-                                        disabled={followMutation.isPending}
-                                    >
-                                        <FaUser className="mr-2" />
-                                        {followed ? 'Отписаться' : 'Подписаться'}
-                                    </Button>
-                                )}
+                                 {user?.id !== post.authorId && (
+                                     <Button
+                                         variant={followed ? "outline" : "primary"}
+                                         size="sm"
+                                         onClick={() => followMutation.mutate(!followed)}
+                                         disabled={followMutation.isPending}
+                                     >
+                                         <FaUser className="mr-2" />
+                                         {followed ? 'Отписаться' : 'Подписаться'}
+                                     </Button>
+                                 )}
                             </div>
                         </div>
                     </div>
@@ -311,17 +312,6 @@ export function ViewPostPage() {
                         </p>
                     </div>
 
-                    {/* Tags */}
-                    <div className="flex flex-wrap gap-2 mt-6">
-                        {post.tags.map(tag => (
-                            <span
-                                key={tag}
-                                className="px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 rounded-full text-sm"
-                            >
-                                #{tag}
-                            </span>
-                        ))}
-                    </div>
                 </CardContent>
             </Card>
 

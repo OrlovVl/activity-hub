@@ -17,7 +17,6 @@ export interface Post {
     authorId: number
     author?: PostAuthor
     subcategoryId: number
-    tags: string[]
     likesCount: number
     commentsCount: number
     createdAt: string
@@ -30,7 +29,6 @@ export interface CreatePostRequest {
     title: string
     content: string
     subcategoryId: number
-    tags: string[]
 }
 
 export interface UpdatePostRequest extends Partial<CreatePostRequest> { }
