@@ -1,15 +1,16 @@
 import { Modal } from '@/shared/ui/modal'
 import { PostEditor } from '@features/posts/components/post-editor'
-import { Subcategory } from '@features/categories/types'
+import { MainCategory, Subcategory } from '@features/categories/types'
 
 interface CreatePostModalProps {
     isOpen: boolean
     onClose: () => void
+    mainCategories: MainCategory[]
     subcategories: Subcategory[]
     onSubmit: (data: any) => Promise<void>
 }
 
-export function CreatePostModal({ isOpen, onClose, subcategories, onSubmit }: CreatePostModalProps) {
+export function CreatePostModal({ isOpen, onClose, mainCategories, subcategories, onSubmit }: CreatePostModalProps) {
     const handleSubmit = async (data: any) => {
         await onSubmit(data)
         onClose()
@@ -23,6 +24,7 @@ export function CreatePostModal({ isOpen, onClose, subcategories, onSubmit }: Cr
             size="xl"
         >
             <PostEditor
+                mainCategories={mainCategories}
                 subcategories={subcategories}
                 onSubmit={handleSubmit}
                 onCancel={onClose}
