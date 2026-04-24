@@ -63,6 +63,15 @@ export function UserProfilePage() {
         },
     })
 
+    const isOwnProfile = user?.id === userId
+
+    const { data: followStatus } = useQuery({
+        queryKey: ['followStatus', userId],
+        queryFn: () => usersApi.isFollowing(userId),
+        enabled: !!userId && !isOwnProfile,
+        staleTime: 1000 * 60 * 5, // Кэшируем на 5 минут
+    })
+
     // Обработка ошибок
     if (userLoading) {
         return (
@@ -87,15 +96,6 @@ export function UserProfilePage() {
             </div>
         )
     }
-
-    const isOwnProfile = user?.id === userId
-
-    const { data: followStatus } = useQuery({
-        queryKey: ['followStatus', userId],
-        queryFn: () => usersApi.isFollowing(userId),
-        enabled: !!userId && !isOwnProfile,
-        staleTime: 1000 * 60 * 5, // Кэшируем на 5 минут
-    })
 
     const isFollowing = !isOwnProfile ? (followStatus?.isFollowing ?? false) : false
 
