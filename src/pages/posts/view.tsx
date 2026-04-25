@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { FaHeart, FaRegHeart, FaComment, FaUser, FaBookmark } from 'react-icons/fa'
+import { FaHeart, FaRegHeart, FaComment, FaUser, FaBookmark, FaTrash, FaEdit } from 'react-icons/fa'
 import { Avatar } from '@/shared/ui/avatar'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent } from '@/shared/ui/card'
@@ -12,7 +12,7 @@ import { usersApi } from '@/features/users/api'
 import { Skeleton } from '@/shared/ui/skeleton'
 import { useAuth } from '@/app/providers/auth-provider'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiClient } from '@/shared/api/client'
+import { apiClient, normalizeRole } from '@/shared/api/client'
 
 export function ViewPostPage() {
     const { id } = useParams<{ id: string }>()
@@ -174,6 +174,22 @@ export function ViewPostPage() {
         if (post) navigate(`/posts/${post.id}/edit`)
     }
 
+    const handleDelete = async () => {
+        if (!post || !user) return
+        if (confirm(`Удалить пост "${post.title}"?`)) {
+            try {
+                await postsApi.deletePost(post.id)
+                // После удаления инвалидируем кэш и перенаправляем
+                await queryClient.invalidateQueries({ queryKey: ['posts'] })
+                navigate('/')
+            } catch (error) {
+                console.error('Error deleting post:', error)
+                // Если ошибка (например 404), все равно перенаправляем
+                navigate('/')
+            }
+        }
+    }
+
     const handleAuthorClick = () => {
         if (author) navigate(`/users/${author.id}`)
     }
@@ -243,9 +259,16 @@ export function ViewPostPage() {
                             {bookmarked ? 'В закладках' : 'В закладки'}
                         </span>
                     </button>
-                    {user?.id === post.authorId && (
+                    {user && (user.id === post.authorId || normalizeRole(user.role) === 'admin') && (
                         <Button variant="outline" size="sm" onClick={handleEdit}>
+                            <FaEdit className="mr-2" />
                             Редактировать
+                        </Button>
+                    )}
+                    {user && (user.id === post.authorId || normalizeRole(user.role) === 'admin') && (
+                        <Button variant="outline" size="sm" className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950" onClick={handleDelete} disabled={likeMutation.isPending}>
+                            <FaTrash className="mr-2" />
+                            Удалить
                         </Button>
                     )}
                 </div>

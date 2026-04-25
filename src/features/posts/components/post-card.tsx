@@ -138,15 +138,6 @@ export function PostCard({
                     )}
                     <span>{post.likesCount}</span>
                 </button>
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation()
-                        _onCommentClick?.()
-                    }}
-                    className="flex items-center space-x-2 px-3 py-1 rounded-full hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors"
-                >
-                    <span>{post.commentsCount}</span>
-                </button>
             </div>
         </div>
     )

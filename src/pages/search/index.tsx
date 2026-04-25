@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FaSearch } from 'react-icons/fa'
 import { Input } from '@/shared/ui/input'
@@ -14,37 +14,25 @@ import type { User } from '@/features/users/types'
 export function SearchPage() {
     const navigate = useNavigate()
     const [searchQuery, setSearchQuery] = useState('')
-    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-    // Debounce: задержка 500ms перед отправкой запроса
-    const debouncedQuery = searchQuery.trim().length >= 2 ? searchQuery.trim() : ''
+    const [executedQuery, setExecutedQuery] = useState('')
 
     const { data: searchData, isLoading: searchLoading } = useQuery({
-        queryKey: ['search', debouncedQuery],
-        queryFn: () => searchApi.search(debouncedQuery),
-        enabled: debouncedQuery.length > 0,
+        queryKey: ['search', executedQuery],
+        queryFn: () => searchApi.search(executedQuery),
+        enabled: executedQuery.length >= 2,
         refetchOnWindowFocus: false,
     })
 
-    // Clear debounce timer on unmount or query change
-    useEffect(() => {
-        if (debounceTimerRef.current) {
-            clearTimeout(debounceTimerRef.current)
+    const handleSearch = () => {
+        const query = searchQuery.trim()
+        if (query.length >= 2) {
+            setExecutedQuery(query)
         }
-        if (searchQuery.trim().length >= 2) {
-            debounceTimerRef.current = setTimeout(() => {
-                // queryFn will be triggered automatically by react-query
-            }, 500)
-        }
-        return () => {
-            if (debounceTimerRef.current) {
-                clearTimeout(debounceTimerRef.current)
-            }
-        }
-    }, [searchQuery])
+    }
 
     const clearFilters = () => {
         setSearchQuery('')
+        setExecutedQuery('')
     }
 
     const handlePostClick = (postId: number) => {
@@ -84,7 +72,7 @@ export function SearchPage() {
 
                         <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
-                                <Button type="submit" loading={searchLoading}>
+                                <Button type="button" onClick={handleSearch} disabled={searchQuery.trim().length < 2}>
                                     <FaSearch className="mr-2" />
                                     Искать
                                 </Button>
@@ -98,7 +86,7 @@ export function SearchPage() {
             </Card>
 
             {/* Search Results */}
-            {debouncedQuery && (
+            {executedQuery && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Main Results */}
                     <div className="lg:col-span-2 space-y-6">
@@ -194,7 +182,7 @@ export function SearchPage() {
                         {posts.length === 0 && users.length === 0 && subcategories.length === 0 && (
                             <div className="text-center text-stone-500 dark:text-stone-400 py-12">
                                 <FaSearch className="w-12 h-12 mx-auto mb-4 text-stone-300 dark:text-stone-600" />
-                                <p className="text-lg">Ничего не найдено по запросу "{debouncedQuery}"</p>
+                                <p className="text-lg">Ничего не найдено по запросу "{executedQuery}"</p>
                             </div>
                         )}
                     </div>

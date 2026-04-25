@@ -4,11 +4,13 @@ import {
     FaTags,
     FaSearch,
     FaStar,
-    FaPlusCircle
+    FaPlusCircle,
+    FaShieldAlt
 } from 'react-icons/fa'
 import { cn } from '@/shared/utils/helpers'
 import { useAuth } from '@/app/providers/auth-provider'
 import { Link, useLocation } from 'react-router-dom'
+import { normalizeRole } from '@/shared/api/client'
 
 interface NavigationItem {
     icon: React.ElementType
@@ -36,6 +38,10 @@ export function Navigation({ isCollapsed, onItemClick }: NavigationProps) {
 
     const actionNavigation: NavigationItem[] = user ? [
         { icon: FaPlusCircle, label: 'Создать пост', path: '/posts/create', highlight: true },
+    ] : []
+
+    const adminNavigation: NavigationItem[] = user && normalizeRole(user.role) === 'admin' ? [
+        { icon: FaShieldAlt, label: 'Админ-панель', path: '/admin' },
     ] : []
 
     const handleClick = () => {
@@ -108,6 +114,37 @@ export function Navigation({ isCollapsed, onItemClick }: NavigationProps) {
                                     item.highlight
                                         ? 'bg-[#ffc09e] hover:bg-[#ffb08a] text-amber-800'
                                         : 'hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300',
+                                    isCollapsed ? 'justify-center' : 'justify-start space-x-3'
+                                )}
+                            >
+                                <item.icon className="w-5 h-5 flex-shrink-0" />
+                                {!isCollapsed && (
+                                    <span className="font-medium truncate">{item.label}</span>
+                                )}
+                            </Link>
+                        ))}
+                    </nav>
+                </div>
+            )}
+
+            {/* Админ-панель */}
+            {adminNavigation.length > 0 && (
+                <div>
+                    <h3 className={cn(
+                        'px-3 mb-2 text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider',
+                        isCollapsed && 'sr-only'
+                    )}>
+                        Администрирование
+                    </h3>
+                    <nav className="space-y-1">
+                        {adminNavigation.map((item) => (
+                            <Link
+                                key={item.label}
+                                to={item.path}
+                                onClick={handleClick}
+                                className={cn(
+                                    'flex items-center px-3 py-2 rounded-lg transition-colors',
+                                    'hover:bg-red-100 dark:hover:bg-red-900/20 text-red-700 dark:text-red-400',
                                     isCollapsed ? 'justify-center' : 'justify-start space-x-3'
                                 )}
                             >

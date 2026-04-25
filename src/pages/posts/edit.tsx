@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { FaArrowLeft } from 'react-icons/fa'
+import { FaArrowLeft, FaTrash } from 'react-icons/fa'
 import { PostEditor } from '@features/posts/components/post-editor'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
@@ -9,6 +9,7 @@ import { categoriesApi } from '@features/categories/api'
 import { postsApi } from '@features/posts/api'
 import { useAuth } from '@/app/providers/auth-provider'
 import { useQueryClient } from '@tanstack/react-query'
+import { normalizeRole } from '@/shared/api/client'
 
 export function EditPostPage() {
     const { id } = useParams<{ id: string }>()
@@ -35,7 +36,7 @@ export function EditPostPage() {
     })
 
     useEffect(() => {
-        if (post && user && post.authorId !== user.id) {
+        if (post && user && post.authorId !== user.id && normalizeRole(user.role) !== 'admin') {
             navigate(`/posts/${postId}`)
         }
     }, [post, user, navigate, postId])
@@ -83,21 +84,6 @@ export function EditPostPage() {
         )
     }
 
-    if (user && post.authorId !== user.id) {
-        return (
-            <div className="max-w-4xl mx-auto text-center py-12">
-                <h1 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-4">
-                    Доступ запрещен
-                </h1>
-                <p className="text-stone-600 dark:text-stone-400 mb-6">
-                    Вы можете редактировать только свои посты
-                </p>
-                <Button onClick={() => navigate(`/posts/${postId}`)}>
-                    Вернуться к посту
-                </Button>
-            </div>
-        )
-    }
 
     return (
         <div className="max-w-4xl mx-auto">
@@ -114,6 +100,20 @@ export function EditPostPage() {
                     <h1 className="text-3xl font-bold text-stone-900 dark:text-stone-100">
                         Редактировать пост
                     </h1>
+                    {user && (user.id === post.authorId || normalizeRole(user.role) === 'admin') && (
+                        <Button
+                            variant="danger"
+                            onClick={() => {
+                                if (confirm(`Удалить пост "${post.title}"?`)) {
+                                    postsApi.deletePost(postId).then(() => navigate('/'))
+                                }
+                            }}
+                            disabled={isSubmitting}
+                        >
+                            <FaTrash className="mr-2" />
+                            Удалить
+                        </Button>
+                    )}
                 </div>
             </div>
 

@@ -55,4 +55,12 @@ export const usersApi = {
     removeFavoriteSubcategory: async (id: number): Promise<void> => {
         return apiClient.delete(`/users/me/favorites/subcategories/${id}`)
     },
+
+    grantAdmin: async (userId: number): Promise<{ message: string; user: User }> => {
+        return apiClient.post('/users/admin/grant-admin/' + userId, {})
+    },
+
+    revokeAdmin: async (userId: number): Promise<{ message: string; user: User }> => {
+        return apiClient.post('/users/admin/revoke-admin/' + userId, {})
+    },
 }

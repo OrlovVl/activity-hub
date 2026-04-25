@@ -7,7 +7,8 @@ import { usersApi } from '@/features/users/api'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent } from '@/shared/ui/card'
 import { useAuth } from '@/app/providers/auth-provider'
-import { FaCheck, FaTrash, FaUserShield, FaBroom, FaList } from 'react-icons/fa'
+import { normalizeRole } from '@/shared/api/client'
+import { FaCheck, FaTrash, FaUserShield, FaBroom, FaList, FaEdit } from 'react-icons/fa'
 
 type AdminTab = 'subcategories' | 'posts' | 'users'
 
@@ -19,7 +20,7 @@ export function AdminPage() {
     // Admin check: only admin can access
     const navigate = useNavigate()
 
-    if (!user || user.role !== 'admin') {
+    if (!user || normalizeRole(user.role) !== 'admin') {
         return (
             <div className="max-w-4xl mx-auto text-center py-12">
                 <h1 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-4">
@@ -81,11 +82,112 @@ export function AdminPage() {
     )
 }
 
+import type { Subcategory } from '@/features/categories/types'
+
+// Approved Subcategory Card Component (extracted to avoid hooks in loop)
+function ApprovedSubcategoryCard({
+    sub,
+    onDelete,
+    onSave,
+    deletePending,
+}: {
+    sub: Subcategory
+    onDelete: () => void
+    onSave: (data: { id: number; name: string; description: string }) => void
+    deletePending: boolean
+}) {
+    const [isEditing, setIsEditing] = useState(false)
+    const [editName, setEditName] = useState(sub.name)
+    const [editDesc, setEditDesc] = useState(sub.description)
+
+    return (
+        <Card>
+            <CardContent className="p-4">
+                {!isEditing ? (
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="font-semibold text-stone-900 dark:text-stone-100">{sub.name}</h3>
+                            <p className="text-sm text-stone-600 dark:text-stone-400">{sub.description}</p>
+                        </div>
+                        <div className="flex space-x-1">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                    setIsEditing(true)
+                                    setEditName(sub.name)
+                                    setEditDesc(sub.description)
+                                }}
+                            >
+                                <FaEdit className="mr-1" />
+                                Обновить
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950"
+                                onClick={() => {
+                                    if (confirm(`Удалить подкатегорию "${sub.name}"?`)) {
+                                        onDelete()
+                                    }
+                                }}
+                                disabled={deletePending}
+                            >
+                                <FaTrash className="mr-1" />
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="w-full px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100"
+                            placeholder="Название"
+                        />
+                        <input
+                            type="text"
+                            value={editDesc}
+                            onChange={(e) => setEditDesc(e.target.value)}
+                            className="w-full px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100"
+                            placeholder="Описание"
+                        />
+                        <div className="flex space-x-2">
+                            <Button
+                                size="sm"
+                                onClick={() => {
+                                    onSave({ id: sub.id, name: editName, description: editDesc })
+                                    setIsEditing(false)
+                                }}
+                                disabled={deletePending || !editName}
+                            >
+                                <FaCheck className="mr-1" />
+                                Сохранить
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setIsEditing(false)}
+                            >
+                                Отмена
+                            </Button>
+                        </div>
+                    </div>
+                )}
+                <span className="mt-2 inline-block px-2 py-1 text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full">
+                    Одобрено
+                </span>
+            </CardContent>
+        </Card>
+    )
+}
+
 // Subcategories Management Component
 function SubcategoriesTab({ queryClient }: { queryClient: any }) {
     const { data: subcategories } = useQuery({
         queryKey: ['subcategories', 'all'],
-        queryFn: () => categoriesApi.getSubcategories()
+        queryFn: () => categoriesApi.getSubcategories({ showAll: true })
     })
 
     const approveMutation = useMutation({
@@ -97,6 +199,14 @@ function SubcategoriesTab({ queryClient }: { queryClient: any }) {
 
     const deleteMutation = useMutation({
         mutationFn: (id: number) => categoriesApi.deleteSubcategory(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['subcategories'] })
+        },
+    })
+
+    const updateMutation = useMutation({
+        mutationFn: ({ id, name, description }: { id: number; name: string; description: string }) => 
+            categoriesApi.updateSubcategory(id, { name, description }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['subcategories'] })
         },
@@ -158,17 +268,13 @@ function SubcategoriesTab({ queryClient }: { queryClient: any }) {
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {approvedSubcategories.map(sub => (
-                        <Card key={sub.id}>
-                            <CardContent className="p-4 flex items-center justify-between">
-                                <div>
-                                    <h3 className="font-semibold text-stone-900 dark:text-stone-100">{sub.name}</h3>
-                                    <p className="text-sm text-stone-600 dark:text-stone-400">{sub.description}</p>
-                                </div>
-                                <span className="px-2 py-1 text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full">
-                                    Одобрено
-                                </span>
-                            </CardContent>
-                        </Card>
+                        <ApprovedSubcategoryCard
+                            key={sub.id}
+                            sub={sub}
+                            onDelete={() => deleteMutation.mutate(sub.id)}
+                            onSave={({ id, name, description }) => updateMutation.mutate({ id, name, description })}
+                            deletePending={deleteMutation.isPending}
+                        />
                     ))}
                 </div>
             </div>
@@ -235,9 +341,25 @@ function PostsTab({ queryClient }: { queryClient: any }) {
 
 // Users Management Component
 function UsersTab() {
+    const { user: currentUser } = useAuth()
+    const queryClient = useQueryClient()
     const { data: usersData } = useQuery({
         queryKey: ['users', 'admin'],
         queryFn: () => usersApi.getUsers({ limit: 50 })
+    })
+
+    const grantAdminMutation = useMutation({
+        mutationFn: (userId: number) => usersApi.grantAdmin(userId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['users', 'admin'] })
+        },
+    })
+
+    const revokeAdminMutation = useMutation({
+        mutationFn: (userId: number) => usersApi.revokeAdmin(userId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['users', 'admin'] })
+        },
     })
 
     const users = usersData?.users || []
@@ -259,6 +381,7 @@ function UsersTab() {
                                 <th className="text-left p-3 text-sm font-medium text-stone-600 dark:text-stone-400">Email</th>
                                 <th className="text-left p-3 text-sm font-medium text-stone-600 dark:text-stone-400">Роль</th>
                                 <th className="text-left p-3 text-sm font-medium text-stone-600 dark:text-stone-400">Дата регистрации</th>
+                                <th className="text-left p-3 text-sm font-medium text-stone-600 dark:text-stone-400">Действия</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -269,15 +392,51 @@ function UsersTab() {
                                     <td className="p-3 text-stone-600 dark:text-stone-400">{u.email}</td>
                                     <td className="p-3">
                                         <span className={`px-2 py-1 text-xs rounded-full ${
-                                            u.role === 'admin' 
+                                            normalizeRole(u.role) === 'admin' 
                                                 ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' 
                                                 : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400'
                                         }`}>
-                                            {u.role === 'admin' ? 'Админ' : 'Пользователь'}
+                                            {normalizeRole(u.role) === 'admin' ? 'Админ' : 'Пользователь'}
                                         </span>
                                     </td>
                                     <td className="p-3 text-stone-600 dark:text-stone-400">
                                         {new Date(u.id * 1000000).toLocaleDateString('ru-RU')}
+                                    </td>
+                                    <td className="p-3">
+                                        {currentUser?.id !== u.id && (
+                                            <div className="flex space-x-1">
+                                                {normalizeRole(u.role) !== 'admin' ? (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => {
+                                                            if (confirm(`Назначить ${u.username} админом?`)) {
+                                                                grantAdminMutation.mutate(u.id)
+                                                            }
+                                                        }}
+                                                        disabled={grantAdminMutation.isPending}
+                                                    >
+                                                        <FaUserShield className="mr-1" />
+                                                        Админ
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950"
+                                                        onClick={() => {
+                                                            if (confirm(`Снять ${u.username} с прав админа?`)) {
+                                                                revokeAdminMutation.mutate(u.id)
+                                                            }
+                                                        }}
+                                                        disabled={revokeAdminMutation.isPending}
+                                                    >
+                                                        <FaUserShield className="mr-1" />
+                                                        Снять
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

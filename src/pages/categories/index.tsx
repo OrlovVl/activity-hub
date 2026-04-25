@@ -12,14 +12,14 @@ import { Post } from '@features/posts/types'
 import { useAuth } from '@/app/providers/auth-provider'
 import { cn } from '@/shared/utils/helpers'
 
-// Цвета для главных категорий
+// Минималистичная нумерация — серый фон с тёмным текстом
 const MAIN_CATEGORY_COLORS: Record<number, string> = {
-    1: '#a16207',
-    2: '#0ea5e9',
-    3: '#8b5cf6',
-    4: '#10b981',
-    5: '#ef4444',
-    6: '#ec4899',
+    1: '#f1f5f9',
+    2: '#f1f5f9',
+    3: '#f1f5f9',
+    4: '#f1f5f9',
+    5: '#f1f5f9',
+    6: '#f1f5f9',
 }
 
 // Модальное окно для предложения подкатегории с выбором категории
@@ -357,41 +357,34 @@ export function CategoriesPage() {
                             className="cursor-pointer pb-4"
                             onClick={() => toggleCategory(mainCategory.id)}
                         >
-                            <div className="flex items-center gap-4">
-                                <div
-                                    className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl"
-                                    style={{ backgroundColor: `${MAIN_CATEGORY_COLORS[mainCategory.id] || '#a16207'}20` }}
-                                >
-                                    <span className="text-stone-900 dark:text-stone-100 font-bold">
-                                        {mainCategory.id}
-                                    </span>
-                                </div>
-                                <div className="flex-1">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <CardTitle className="text-xl text-stone-900 dark:text-stone-100">
-                                                {mainCategory.name}
-                                            </CardTitle>
-                                            <p className="text-sm text-stone-600 dark:text-stone-400 mt-1">
-                                                {mainCategory.description}
-                                            </p>
-                                        </div>
-                                        <div className="flex items-center gap-3 text-sm text-stone-500">
-                                            <span>{subcategories.length} подкатегорий</span>
-                                            {expandedCategories.has(mainCategory.id) ? (
-                                                <FaChevronDown className="w-5 h-5" />
-                                            ) : (
-                                                <FaChevronRight className="w-5 h-5" />
-                                            )}
-                                        </div>
+                            <div className="flex-1 text-center">
+                                <div>
+                                    <CardTitle className="text-xl text-stone-900 dark:text-stone-100">
+                                        {mainCategory.name}
+                                    </CardTitle>
+                                    <p className="text-sm text-stone-600 dark:text-stone-400 mt-1">
+                                        {mainCategory.description}
+                                    </p>
+                                    <div className="flex items-center justify-center gap-3 text-xs text-stone-400 mt-2">
+                                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 font-medium">
+                                            {mainCategory.id}
+                                        </span>
+                                        <span>{subcategories.length} подкатегорий</span>
                                     </div>
+                                </div>
+                                <div className="flex items-center justify-center mt-3">
+                                    {expandedCategories.has(mainCategory.id) ? (
+                                        <FaChevronDown className="w-5 h-5 text-stone-400" />
+                                    ) : (
+                                        <FaChevronRight className="w-5 h-5 text-stone-400" />
+                                    )}
                                 </div>
                             </div>
                         </CardHeader>
 
                         {expandedCategories.has(mainCategory.id) && (
                             <CardContent className="pt-0 pb-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-16">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     {subcategories.map(subcategory => (
                                         <div
                                             key={subcategory.id}
@@ -403,19 +396,9 @@ export function CategoriesPage() {
                                         >
                                             <div className="flex items-start justify-between">
                                                 <div className="flex-1">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <div
-                                                            className="w-2 h-2 rounded-full"
-                                                            style={{
-                                                                backgroundColor: subcategory.isApproved
-                                                                    ? '#10b981'
-                                                                    : '#f59e0b'
-                                                            }}
-                                                        />
-                                                        <h4 className="font-medium text-stone-900 dark:text-stone-100">
-                                                            {subcategory.name}
-                                                        </h4>
-                                                    </div>
+                                                    <h4 className="font-medium text-stone-900 dark:text-stone-100 text-center">
+                                                        {subcategory.name}
+                                                    </h4>
                                                     {subcategory.description && (
                                                         <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
                                                             {subcategory.description}
